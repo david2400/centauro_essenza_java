@@ -1,9 +1,9 @@
 package com.essenza.draco.modules.product_details.infrastructure.outbound.repositories.type_product_feature;
 
 import com.essenza.draco.modules.product_details.application.output.repository.TypeProductFeatureRepository;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.CreateTypeProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.TypeProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.UpdateTypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.CreateTypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.TypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.UpdateTypeProductFeatureDto;
 import com.essenza.draco.modules.product_details.infrastructure.outbound.mappers.TypeProductFeatureMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;

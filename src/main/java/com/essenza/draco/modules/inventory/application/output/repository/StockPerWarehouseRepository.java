@@ -1,6 +1,6 @@
 package com.essenza.draco.modules.inventory.application.output.repository;
 
-import com.essenza.draco.modules.inventory.domain.dto.StockPerWarehouseDto;
+import com.essenza.draco.modules.inventory.application.dto.StockPerWarehouseDto;
 
 import java.util.Optional;
 

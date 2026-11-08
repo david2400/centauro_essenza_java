@@ -3,9 +3,9 @@ package com.essenza.draco.modules.product_details.application.input.unit;
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.SaveUnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitConversionDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.SaveUnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitConversionDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitDto;
 import com.essenza.draco.shared.common.lookup.LookupRequest;
 
 /** Catálogo de unidades de medida con conversiones. */

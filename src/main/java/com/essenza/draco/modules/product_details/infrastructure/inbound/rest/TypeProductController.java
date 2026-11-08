@@ -18,9 +18,9 @@ import com.essenza.draco.modules.product_details.application.input.type_product.
 import com.essenza.draco.modules.product_details.application.input.type_product.DeleteTypeProductUseCase;
 import com.essenza.draco.modules.product_details.application.input.type_product.FindTypeProductByIdUseCase;
 import com.essenza.draco.modules.product_details.application.input.type_product.FindTypeProductsUseCase;
-import com.essenza.draco.modules.product_details.domain.dto.type_product.TypeProductDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product.CreateTypeProductDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product.UpdateTypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.TypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.CreateTypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.UpdateTypeProductDto;
 
 import java.net.URI;
 import java.util.List;

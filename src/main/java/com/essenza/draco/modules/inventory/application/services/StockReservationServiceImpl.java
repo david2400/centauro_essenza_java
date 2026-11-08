@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
 import com.essenza.draco.modules.inventory.application.output.repository.InventoryMovementRepository;
 import com.essenza.draco.modules.inventory.application.output.repository.LegacyStockProjectionPort;
 import com.essenza.draco.modules.inventory.application.output.repository.MainWarehousePort;

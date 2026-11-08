@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.essenza.draco.modules.inventory.domain.dto.StockItemDto;
-import com.essenza.draco.modules.inventory.domain.dto.StockReservationDto;
+import com.essenza.draco.modules.inventory.application.dto.StockItemDto;
+import com.essenza.draco.modules.inventory.application.dto.StockReservationDto;
 import com.essenza.draco.modules.inventory.application.input.stock.FindStockReservationsUseCase;
 import com.essenza.draco.modules.inventory.application.input.stock.FindStockUseCase;
 

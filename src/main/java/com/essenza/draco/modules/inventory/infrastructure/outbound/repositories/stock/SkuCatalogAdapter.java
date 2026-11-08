@@ -1,6 +1,6 @@
 package com.essenza.draco.modules.inventory.infrastructure.outbound.repositories.stock;
 
-import com.essenza.draco.modules.inventory.domain.dto.SkuRef;
+import com.essenza.draco.modules.inventory.application.dto.SkuRef;
 import com.essenza.draco.modules.inventory.application.output.repository.SkuCatalogPort;
 import com.essenza.draco.shared.exceptions.NotFoundException;
 import jakarta.persistence.EntityManager;

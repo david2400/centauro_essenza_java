@@ -63,6 +63,17 @@ public class OrderEntity extends AuditInfo {
     @lombok.Builder.Default
     private java.math.BigDecimal returnedAmount = java.math.BigDecimal.ZERO;
 
+    // ── V19: compras multivendedor. Las escribe ventas por SQL al crear la compra; aquí solo se leen. ──
+    @Column(name = "purchase_id", insertable = false, updatable = false)
+    private Long purchaseId;
+
+    @Column(name = "seller_id", insertable = false, updatable = false)
+    private Long sellerId;
+
+    /** Subpedido de un vendedor externo: venta de terceros (la cobra y la factura el vendedor). */
+    @org.hibernate.annotations.Formula("(SELECT CASE WHEN s.kind = 'EXTERNAL' THEN 1 ELSE 0 END FROM mp_sellers s WHERE s.id = seller_id)")
+    private Boolean thirdPartySale;
+
     // ── V16: orden empresarial (cliente, entrega, origen, descuento, notas y fechas) ──
     @Column(name = "order_number", length = 30)
     private String orderNumber;

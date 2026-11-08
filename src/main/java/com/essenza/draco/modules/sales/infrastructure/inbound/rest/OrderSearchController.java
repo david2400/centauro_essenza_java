@@ -41,7 +41,7 @@ public class OrderSearchController {
 
     @Operation(summary = "Search", description = "q busca en número, cliente, documento, correo, teléfono, referencia y guía; "
             + "filtros state, channel, storeId, priority, deliveryMethod, paymentStatus (UNPAID | PARTIAL | PAID), "
-            + "period (TODAY | LAST_7 | LAST_30 | THIS_MONTH) y overdue; page, size, sort=campo,asc|desc")
+            + "period (TODAY | LAST_7 | LAST_30 | THIS_MONTH) overdue y origin (OWN | MARKETPLACE); page, size, sort=campo,asc|desc")
     @GetMapping("/search")
     public PageResponse<OrderDto> search(
             @RequestParam(value = "q", required = false) String q,
@@ -53,11 +53,12 @@ public class OrderSearchController {
             @RequestParam(value = "paymentStatus", required = false) String paymentStatus,
             @RequestParam(value = "period", required = false) String period,
             @RequestParam(value = "overdue", required = false) Boolean overdue,
+            @RequestParam(value = "origin", required = false) String origin,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size,
             @RequestParam(value = "sort", required = false) String sort) {
         return insights.search(new com.essenza.draco.modules.sales.application.dto.order.OrderFilter(q, state, channel, storeId,
-                priority, deliveryMethod, paymentStatus, period, overdue), PageableFactory.of(page, size, sort, SORTABLE, DEFAULT_SORT));
+                priority, deliveryMethod, paymentStatus, period, overdue, origin), PageableFactory.of(page, size, sort, SORTABLE, DEFAULT_SORT));
     }
 
     @Operation(summary = "Summary", description = "KPIs con los mismos filtros de /search: ventas, ticket promedio y colas de trabajo.")
@@ -71,9 +72,10 @@ public class OrderSearchController {
             @RequestParam(value = "deliveryMethod", required = false) String deliveryMethod,
             @RequestParam(value = "paymentStatus", required = false) String paymentStatus,
             @RequestParam(value = "period", required = false) String period,
-            @RequestParam(value = "overdue", required = false) Boolean overdue) {
+            @RequestParam(value = "overdue", required = false) Boolean overdue,
+            @RequestParam(value = "origin", required = false) String origin) {
         return insights.summary(new com.essenza.draco.modules.sales.application.dto.order.OrderFilter(q, state, channel, storeId,
-                priority, deliveryMethod, paymentStatus, period, overdue));
+                priority, deliveryMethod, paymentStatus, period, overdue, origin));
     }
 
     @Operation(summary = "Bulk delete", description = "Elimina varios registros; los fallos se informan en 'failed'.")

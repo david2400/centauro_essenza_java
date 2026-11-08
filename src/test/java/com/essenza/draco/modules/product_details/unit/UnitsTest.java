@@ -14,9 +14,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.SaveUnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitUsage;
+import com.essenza.draco.modules.product_details.application.dto.unit.SaveUnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitUsage;
 import com.essenza.draco.modules.product_details.application.output.repository.UnitRepository;
 import com.essenza.draco.modules.product_details.application.services.UnitServiceImpl;
 import com.essenza.draco.modules.product_details.domain.model.unit.UnitDimension;

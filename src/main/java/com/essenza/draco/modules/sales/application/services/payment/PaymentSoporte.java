@@ -84,6 +84,21 @@ class PaymentSoporte {
         return order;
     }
 
+    /**
+     * Marketplace (V19): el comprador le paga directamente al vendedor externo. Mientras el
+     * vendedor no tenga su cuenta conectada a la pasarela, aquí no se cobra en línea ni en caja:
+     * solo se registra el pago que el vendedor confirme.
+     */
+    void rejectThirdPartyCollection(Long orderId, String how) {
+        // Consignación: la mercancía la guarda y despacha la tienda, así que la tienda cobra y liquida al vendedor.
+        if (ledger.marketplaceLink(orderId).map(OrderLedger.MarketplaceLink::thirdParty).orElse(false)
+                && !ledger.consignmentSale(orderId)) {
+            throw new PaymentRuleViolation("La orden " + orderId + " es el subpedido de un vendedor externo: el comprador "
+                    + "le paga directamente al vendedor y la tienda no lo cobra " + how + ". Registra el pago cuando el "
+                    + "vendedor lo confirme.");
+        }
+    }
+
     PaymentMethod method(Long methodId) {
         PaymentMethod method = methods.findById(methodId)
                 .orElseThrow(() -> new NotFoundException("Medio de pago no encontrado: " + methodId));

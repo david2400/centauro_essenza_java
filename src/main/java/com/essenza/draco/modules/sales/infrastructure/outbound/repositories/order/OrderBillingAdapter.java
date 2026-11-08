@@ -59,8 +59,14 @@ public class OrderBillingAdapter implements OrderBilling {
                         o.getCustomerEmail(), o.getCustomerPhone(),
                         o.getBillingAddress() != null ? o.getBillingAddress() : o.getShipAddress(),
                         o.getBillingCity() != null ? o.getBillingCity() : o.getShipCity());
+        // Marketplace (V19): el subpedido de un vendedor externo lo factura ese vendedor.
+        boolean thirdParty = !em.createNativeQuery("""
+                        SELECT 1 FROM orders x JOIN mp_sellers s ON s.id = x.seller_id
+                         WHERE x.id_order = :id AND s.kind = 'EXTERNAL'""")
+                .setParameter("id", orderId).getResultList().isEmpty();
         return Optional.of(new BillableOrder(o.getId(), o.getState(), o.getTotal(), zero(o.getTaxAmount()),
-                o.getNetAmount() == null ? o.getTotal() : o.getNetAmount(), billable, kinds, o.getChannel(), buyer));
+                o.getNetAmount() == null ? o.getTotal() : o.getNetAmount(), billable, kinds, o.getChannel(), buyer,
+                thirdParty));
     }
 
     private static BillableLine toLine(ProductOrderEntity line) {

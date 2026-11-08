@@ -1,8 +1,8 @@
 package com.essenza.draco.modules.inventory.application.services;
 
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
-import com.essenza.draco.modules.inventory.domain.dto.SkuRef;
-import com.essenza.draco.modules.inventory.domain.dto.StockItemDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.SkuRef;
+import com.essenza.draco.modules.inventory.application.dto.StockItemDto;
 import com.essenza.draco.modules.inventory.application.input.movement.RegisterEntryUseCase;
 import com.essenza.draco.modules.inventory.application.input.movement.RegisterExitUseCase;
 import com.essenza.draco.modules.inventory.application.input.movement.RegisterTransferUseCase;

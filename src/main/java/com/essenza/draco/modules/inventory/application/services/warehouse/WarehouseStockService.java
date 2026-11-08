@@ -8,7 +8,7 @@ import com.essenza.draco.modules.inventory.application.input.warehouse.Warehouse
 import com.essenza.draco.modules.inventory.application.output.repository.SkuCatalogPort;
 import com.essenza.draco.modules.inventory.application.output.repository.StockItemRepository;
 import com.essenza.draco.modules.inventory.application.output.repository.WarehouseInsights;
-import com.essenza.draco.modules.inventory.domain.dto.SkuRef;
+import com.essenza.draco.modules.inventory.application.dto.SkuRef;
 import com.essenza.draco.modules.inventory.domain.model.StockItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

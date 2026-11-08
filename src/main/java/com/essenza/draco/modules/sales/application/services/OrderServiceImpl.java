@@ -30,6 +30,7 @@ import com.essenza.draco.modules.sales.application.services.order.OrderTransitio
 import com.essenza.draco.modules.sales.domain.model.OrderStatus;
 import com.essenza.draco.modules.sales.domain.model.order.OrderEventType;
 import com.essenza.draco.shared.common.inventory.StockReservations;
+import com.essenza.draco.shared.common.marketplace.OfferStock;
 import com.essenza.draco.shared.exceptions.ConflictException;
 import com.essenza.draco.shared.exceptions.NotFoundException;
 
@@ -57,16 +58,18 @@ public class OrderServiceImpl implements CreateOrderUseCase,
     private final Duration reservationTtl;
     private final OrderTransitions transitions;
     private final OrderSoporte soporte;
+    private final OfferStock offers;
 
     public OrderServiceImpl(OrderRepository orderRepository, OrderLedger ledger, StockReservations reservations,
                             @Value("${essenza.orders.reservation-ttl:PT24H}") Duration reservationTtl,
-                            OrderTransitions transitions, OrderSoporte soporte) {
+                            OrderTransitions transitions, OrderSoporte soporte, OfferStock offers) {
         this.orderRepository = orderRepository;
         this.ledger = ledger;
         this.reservations = reservations;
         this.reservationTtl = reservationTtl;
         this.transitions = transitions;
         this.soporte = soporte;
+        this.offers = offers;
     }
 
     @Override
@@ -107,6 +110,10 @@ public class OrderServiceImpl implements CreateOrderUseCase,
                     + ": tiene despachos o devoluciones asociados.");
         }
         OrderHeader header = header(id);
+        if (ledger.marketplaceLink(id).isPresent()) {
+            throw new ConflictException("La orden " + id + " es un subpedido de una compra multivendedor: cancélala en "
+                    + "lugar de eliminarla.");
+        }
         if (header.stockManaged()) {
             OrderStatus status = OrderStatus.tryParse(header.state()).orElse(OrderStatus.PENDING);
             if (status == OrderStatus.PENDING) {
@@ -157,6 +164,7 @@ public class OrderServiceImpl implements CreateOrderUseCase,
             return false;
         }
         reservations.releaseOrder(orderId, true);
+        offers.releaseOrder(orderId, true);
         ledger.setState(orderId, OrderStatus.CANCELLED.name(), EXPIRED_REASON);
         soporte.log(orderId, OrderEventType.STATUS, OrderStatus.PENDING.name(), OrderStatus.CANCELLED.name(), EXPIRED_REASON,
                 null);

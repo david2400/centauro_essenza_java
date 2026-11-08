@@ -338,6 +338,29 @@ public class OrderLedgerAdapter implements OrderLedger {
         return count.longValue() > 0;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Optional<MarketplaceLink> marketplaceLink(Long orderId) {
+        List<Object[]> rows = em.createNativeQuery("""
+                        SELECT o.purchase_id, o.seller_id, CASE WHEN s.kind = 'EXTERNAL' THEN 1 ELSE 0 END
+                          FROM orders o LEFT JOIN mp_sellers s ON s.id = o.seller_id
+                         WHERE o.id_order = :id AND o.purchase_id IS NOT NULL""")
+                .setParameter("id", orderId).getResultList();
+        return rows.stream().findFirst().map(row -> new MarketplaceLink(((Number) row[0]).longValue(),
+                row[1] == null ? null : ((Number) row[1]).longValue(), ((Number) row[2]).intValue() == 1));
+    }
+
+    @Override
+    public boolean consignmentSale(Long orderId) {
+        Object row = em.createNativeQuery("""
+                        SELECT CASE WHEN COUNT(*) > 0 AND SUM(CASE WHEN f.fulfillment = 'PLATFORM' THEN 1 ELSE 0 END) = COUNT(*)
+                                    THEN 1 ELSE 0 END
+                          FROM product_orders l LEFT JOIN mp_offers f ON f.id = l.offer_id
+                         WHERE l.order_id = :id AND l.deleted = 0""")
+                .setParameter("id", orderId).getSingleResult();
+        return row != null && ((Number) row).intValue() == 1;
+    }
+
     /** Toma el siguiente número libre (salta los que ya existan) y avanza la numeración. */
     private String takeNumber() {
         OrderNumber numbering = lockNumbering();

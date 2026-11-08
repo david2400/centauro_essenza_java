@@ -18,8 +18,17 @@ public interface OrderBilling {
     /**
      * @param paidKinds tipos de medio de los pagos aprobados (CASH, CARD_TERMINAL…), para el medio de pago DIAN
      */
+    /**
+     * @param thirdPartySale subpedido de un vendedor externo del marketplace: lo factura ese vendedor, no la tienda
+     */
     record BillableOrder(Long id, String state, BigDecimal total, BigDecimal taxAmount, BigDecimal netAmount,
-                         List<BillableLine> lines, List<String> paidKinds, String channel, BillableBuyer buyer) {
+                         List<BillableLine> lines, List<String> paidKinds, String channel, BillableBuyer buyer,
+                         boolean thirdPartySale) {
+
+        public BillableOrder(Long id, String state, BigDecimal total, BigDecimal taxAmount, BigDecimal netAmount,
+                             List<BillableLine> lines, List<String> paidKinds, String channel, BillableBuyer buyer) {
+            this(id, state, total, taxAmount, netAmount, lines, paidKinds, channel, buyer, false);
+        }
 
         public BillableOrder(Long id, String state, BigDecimal total, BigDecimal taxAmount, BigDecimal netAmount,
                              List<BillableLine> lines, List<String> paidKinds, String channel) {

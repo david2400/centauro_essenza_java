@@ -78,6 +78,7 @@ public class OrderInsightsAdapter implements OrderInsights {
                 .groupBy(root.get("state"));
         Map<String, Long> byState = new LinkedHashMap<>();
         BigDecimal gross = BigDecimal.ZERO;
+        BigDecimal marketplace = BigDecimal.ZERO;
         long count = 0;
         long valid = 0;
         for (Tuple t : em.createQuery(q).getResultList()) {
@@ -91,6 +92,19 @@ public class OrderInsightsAdapter implements OrderInsights {
                 gross = gross.add(sum == null ? BigDecimal.ZERO : sum);
             }
         }
+        {
+            // V19: lo vendido por vendedores externos (no es ingreso propio). Consulta aparte, sin agrupar por la fórmula.
+            CriteriaQuery<BigDecimal> mq = cb.createQuery(BigDecimal.class);
+            Root<OrderEntity> m = mq.from(OrderEntity.class);
+            Expression<BigDecimal> mCharged = cb.diff(cb.coalesce(m.<BigDecimal>get("total"), BigDecimal.ZERO),
+                    cb.coalesce(m.<BigDecimal>get("returnedAmount"), BigDecimal.ZERO));
+            List<Predicate> mPredicates = new ArrayList<>(List.of(predicates(filter, m, mq, cb)));
+            mPredicates.add(cb.isTrue(m.<Boolean>get("thirdPartySale")));
+            mPredicates.add(cb.notEqual(m.get("state"), "CANCELLED"));
+            mq.select(cb.sum(mCharged)).where(mPredicates.toArray(Predicate[]::new));
+            BigDecimal value = em.createQuery(mq).getSingleResult();
+            marketplace = value == null ? BigDecimal.ZERO : value;
+        }
         CriteriaQuery<Long> overdueQ = cb.createQuery(Long.class);
         Root<OrderEntity> o = overdueQ.from(OrderEntity.class);
         List<Predicate> overduePredicates = new ArrayList<>(List.of(predicates(filter, o, overdueQ, cb)));
@@ -102,7 +116,8 @@ public class OrderInsightsAdapter implements OrderInsights {
                 byState.getOrDefault("PENDING", 0L),
                 byState.getOrDefault("PAID", 0L) + byState.getOrDefault("PROCESSING", 0L),
                 byState.getOrDefault("READY", 0L), byState.getOrDefault("SHIPPED", 0L),
-                byState.getOrDefault("DELIVERED", 0L), byState.getOrDefault("CANCELLED", 0L), overdue, byState);
+                byState.getOrDefault("DELIVERED", 0L), byState.getOrDefault("CANCELLED", 0L), overdue, byState,
+                gross.subtract(marketplace).setScale(2, RoundingMode.HALF_UP), marketplace.setScale(2, RoundingMode.HALF_UP));
     }
 
     private Predicate[] predicates(OrderFilter f, Root<OrderEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
@@ -125,6 +140,15 @@ public class OrderInsightsAdapter implements OrderInsights {
         }
         if (notBlank(f.state())) {
             list.add(cb.equal(root.get("state"), f.state().trim().toUpperCase(Locale.ROOT)));
+        }
+        if (notBlank(f.origin())) {
+            // V19: MARKETPLACE = subpedidos de vendedores externos; OWN = el resto.
+            Expression<Boolean> thirdParty = root.get("thirdPartySale");
+            if ("MARKETPLACE".equalsIgnoreCase(f.origin().trim())) {
+                list.add(cb.isTrue(thirdParty));
+            } else if ("OWN".equalsIgnoreCase(f.origin().trim())) {
+                list.add(cb.or(cb.isNull(thirdParty), cb.isFalse(thirdParty)));
+            }
         }
         if (notBlank(f.channel())) {
             list.add(cb.equal(root.get("channel"), f.channel().trim().toUpperCase(Locale.ROOT)));

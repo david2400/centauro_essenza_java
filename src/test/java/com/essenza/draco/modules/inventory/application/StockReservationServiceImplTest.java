@@ -24,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
 import com.essenza.draco.modules.inventory.application.output.repository.InventoryMovementRepository;
 import com.essenza.draco.modules.inventory.application.output.repository.LegacyStockProjectionPort;
 import com.essenza.draco.modules.inventory.application.output.repository.MainWarehousePort;

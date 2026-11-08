@@ -50,6 +50,8 @@ import com.essenza.draco.shared.common.promotions.Coupons;
 import com.essenza.draco.shared.common.catalog.SkuPricing;
 import com.essenza.draco.shared.common.catalog.SkuPricing.SkuSnapshot;
 import com.essenza.draco.shared.common.inventory.StockReservations;
+import com.essenza.draco.shared.common.marketplace.OfferStock;
+import com.essenza.draco.shared.common.marketplace.SellerCommissions;
 import com.essenza.draco.shared.exceptions.ConflictException;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,8 +76,8 @@ class OrderFlowServicesTest {
     @BeforeEach
     void setUp() {
         OrderSoporte soporte = new OrderSoporte(ledger, orderRepository, insights, events, references, coupons);
-        OrderTransitions transitions = new OrderTransitions(ledger, orderRepository, reservations, event -> { }, soporte);
-        orders = new OrderServiceImpl(orderRepository, ledger, reservations, TTL, transitions, soporte);
+        OrderTransitions transitions = new OrderTransitions(ledger, orderRepository, reservations, event -> { }, soporte, OfferStock.NONE, SellerCommissions.NONE);
+        orders = new OrderServiceImpl(orderRepository, ledger, reservations, TTL, transitions, soporte, OfferStock.NONE);
         lines = new ProductOrderServiceImpl(productOrderRepository, ledger, skuPricing, reservations, TTL, soporte);
         when(insights.enrich(any())).thenAnswer(inv -> inv.getArgument(0));
         when(ledger.details(anyLong())).thenAnswer(inv -> Optional.of(new OrderDetails(inv.getArgument(0), "PENDING", "ORD-7",

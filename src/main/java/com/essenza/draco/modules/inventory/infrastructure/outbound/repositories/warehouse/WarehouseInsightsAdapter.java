@@ -29,10 +29,11 @@ import java.util.Optional;
 @Component
 public class WarehouseInsightsAdapter implements WarehouseInsights {
 
-    /** Una fila por SKU vigente en la bodega; valor = físicas × costo del SKU. */
+    /** Una fila por SKU vigente en la bodega; valor = físicas × costo promedio (V27) o, si no lo hay, el del catálogo. */
     private static final String STOCK_BASE = """
               FROM stock_items i
               JOIN product_skus k ON k.id_sku = i.sku_id AND k.deleted = 0
+              LEFT JOIN inv_sku_costs c ON c.sku_id = i.sku_id
               LEFT JOIN products p ON p.id_product = i.product_id
              WHERE i.deleted = 0 AND i.warehouse_id = :wid
             """;
@@ -40,7 +41,7 @@ public class WarehouseInsightsAdapter implements WarehouseInsights {
     private static final Map<String, String> STOCK_SORT = Map.of(
             "skuCode", "k.code", "productName", "p.name", "onHand", "i.on_hand", "reserved", "i.reserved",
             "available", "(i.on_hand - i.reserved)", "minThreshold", "i.min_threshold",
-            "stockValue", "(i.on_hand * COALESCE(k.cost_price, 0))");
+            "stockValue", "(i.on_hand * COALESCE(c.avg_cost, k.cost_price, 0))");
 
     private final EntityManager em;
 
@@ -56,10 +57,11 @@ public class WarehouseInsightsAdapter implements WarehouseInsights {
         }
         List<Object[]> rows = em.createNativeQuery("""
                         SELECT i.warehouse_id, COUNT(*), COALESCE(SUM(i.on_hand), 0), COALESCE(SUM(i.reserved), 0),
-                               COALESCE(SUM(i.on_hand * COALESCE(k.cost_price, 0)), 0),
+                               COALESCE(SUM(i.on_hand * COALESCE(c.avg_cost, k.cost_price, 0)), 0),
                                COALESCE(SUM(CASE WHEN %s THEN 1 ELSE 0 END), 0)
                           FROM stock_items i
                           JOIN product_skus k ON k.id_sku = i.sku_id AND k.deleted = 0
+                          LEFT JOIN inv_sku_costs c ON c.sku_id = i.sku_id
                          WHERE i.deleted = 0 AND i.warehouse_id IN (:ids)
                          GROUP BY i.warehouse_id""".formatted(BELOW_MIN))
                 .setParameter("ids", warehouseIds).getResultList();
@@ -72,10 +74,11 @@ public class WarehouseInsightsAdapter implements WarehouseInsights {
     public StockSummary totals() {
         Object[] r = (Object[]) em.createNativeQuery("""
                 SELECT COUNT(*), COALESCE(SUM(i.on_hand), 0), COALESCE(SUM(i.reserved), 0),
-                       COALESCE(SUM(i.on_hand * COALESCE(k.cost_price, 0)), 0),
+                       COALESCE(SUM(i.on_hand * COALESCE(c.avg_cost, k.cost_price, 0)), 0),
                        COALESCE(SUM(CASE WHEN %s THEN 1 ELSE 0 END), 0)
                   FROM stock_items i
                   JOIN product_skus k ON k.id_sku = i.sku_id AND k.deleted = 0
+                  LEFT JOIN inv_sku_costs c ON c.sku_id = i.sku_id
                   JOIN warehouses w ON w.id_warehouse = i.warehouse_id AND w.deleted = 0
                  WHERE i.deleted = 0""".formatted(BELOW_MIN)).getSingleResult();
         return summary(r, 0);
@@ -97,7 +100,7 @@ public class WarehouseInsightsAdapter implements WarehouseInsights {
                 .map(o -> STOCK_SORT.get(o.getProperty()) + (o.getDirection() == Sort.Direction.DESC ? " DESC" : " ASC"))
                 .reduce((a, b) -> a + ", " + b).orElse("p.name, k.name") : "p.name, k.name";
         Query list = em.createNativeQuery("""
-                SELECT i.sku_id, i.product_id, k.code, p.name, k.name, i.on_hand, i.reserved, i.min_threshold, k.cost_price
+                SELECT i.sku_id, i.product_id, k.code, p.name, k.name, i.on_hand, i.reserved, i.min_threshold, COALESCE(c.avg_cost, k.cost_price)
                 """ + where + " ORDER BY " + order + ", i.sku_id");
         Query count = em.createNativeQuery("SELECT COUNT(*) " + where);
         for (Query query : List.of(list, count)) {
@@ -115,7 +118,7 @@ public class WarehouseInsightsAdapter implements WarehouseInsights {
     @SuppressWarnings("unchecked")
     public Optional<StockLine> line(Long warehouseId, Long skuId) {
         List<Object[]> rows = em.createNativeQuery("""
-                        SELECT i.sku_id, i.product_id, k.code, p.name, k.name, i.on_hand, i.reserved, i.min_threshold, k.cost_price
+                        SELECT i.sku_id, i.product_id, k.code, p.name, k.name, i.on_hand, i.reserved, i.min_threshold, COALESCE(c.avg_cost, k.cost_price)
                         """ + STOCK_BASE + " AND i.sku_id = :sku")
                 .setParameter("wid", warehouseId).setParameter("sku", skuId).getResultList();
         return rows.stream().findFirst().map(WarehouseInsightsAdapter::line);

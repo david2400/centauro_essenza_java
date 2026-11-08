@@ -14,8 +14,8 @@ import com.essenza.draco.modules.inventory.application.output.repository.MainWar
 import com.essenza.draco.modules.inventory.application.output.repository.SkuCatalogPort;
 import com.essenza.draco.modules.inventory.application.output.repository.StockItemRepository;
 import com.essenza.draco.modules.inventory.application.output.repository.WarehouseRepository;
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
-import com.essenza.draco.modules.inventory.domain.dto.SkuRef;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.SkuRef;
 import com.essenza.draco.modules.inventory.domain.model.StockItem;
 import com.essenza.draco.shared.common.inventory.StockReturns;
 import com.essenza.draco.shared.exceptions.NotFoundException;

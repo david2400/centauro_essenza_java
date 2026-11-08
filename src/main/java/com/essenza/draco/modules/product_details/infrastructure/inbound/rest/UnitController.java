@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.SaveUnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitConversionDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.SaveUnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitConversionDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitDto;
 import com.essenza.draco.modules.product_details.application.input.unit.ManageUnitsUseCase;
 import com.essenza.draco.shared.common.lookup.LookupRequest;
 

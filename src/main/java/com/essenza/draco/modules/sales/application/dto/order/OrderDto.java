@@ -32,6 +32,11 @@ public class OrderDto extends AuditInfoDto {
     // ── V16 ──────────────────────────────────────────────────────────────────
     /** Número visible de la orden (PREFIJO-000123). */
     private String orderNumber;
+
+    // V19: compra multivendedor y vendedor del subpedido (true = vendedor externo).
+    private Long purchaseId;
+    private Long sellerId;
+    private Boolean thirdPartySale;
     /** Cliente y datos de facturación congelados en la orden. */
     private Long customerId;
     private String customerKind;

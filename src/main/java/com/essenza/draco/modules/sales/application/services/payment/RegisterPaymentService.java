@@ -44,6 +44,7 @@ public class RegisterPaymentService implements RegisterPaymentUseCase {
             throw new PaymentRuleViolation("\"" + method.name() + "\" es una pasarela en línea: inicia el pago con el checkout.");
         }
         if (input.cashSessionId() != null) {
+            soporte.rejectThirdPartyCollection(order.id(), "en caja");
             // Cobro en caja: el turno debe estar abierto (se bloquea para serializar con el cierre).
             cashSessions.lockById(input.cashSessionId())
                     .orElseThrow(() -> new NotFoundException("No se encontró el turno de caja " + input.cashSessionId() + "."))

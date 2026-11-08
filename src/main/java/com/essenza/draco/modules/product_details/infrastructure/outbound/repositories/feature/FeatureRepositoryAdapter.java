@@ -1,9 +1,9 @@
 package com.essenza.draco.modules.product_details.infrastructure.outbound.repositories.feature;
 
 import com.essenza.draco.modules.product_details.application.output.repository.FeatureRepository;
-import com.essenza.draco.modules.product_details.domain.dto.feature.CreateFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.feature.FeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.feature.UpdateFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.feature.CreateFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.feature.FeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.feature.UpdateFeatureDto;
 import com.essenza.draco.modules.product_details.infrastructure.outbound.mappers.FeatureMapper;
 import com.essenza.draco.modules.product_details.infrastructure.outbound.persistence.mysql.shop.FeatureEntity;
 import com.essenza.draco.modules.product_details.infrastructure.outbound.persistence.mysql.shop.UnitMeasurementEntity;

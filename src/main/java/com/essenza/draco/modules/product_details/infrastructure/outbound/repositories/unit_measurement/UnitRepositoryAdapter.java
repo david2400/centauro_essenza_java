@@ -8,7 +8,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitUsage;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitUsage;
 import com.essenza.draco.modules.product_details.application.output.repository.UnitRepository;
 import com.essenza.draco.modules.product_details.domain.model.unit.UnitDimension;
 import com.essenza.draco.modules.product_details.domain.model.unit.UnitOfMeasure;

@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitUsage;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitUsage;
 import com.essenza.draco.modules.product_details.domain.model.unit.UnitOfMeasure;
 
 /** Persistencia de unidades ({@code units_measurement}, sin borradas). */

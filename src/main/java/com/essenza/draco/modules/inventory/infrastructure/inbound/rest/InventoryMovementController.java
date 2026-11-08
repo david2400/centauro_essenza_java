@@ -1,6 +1,6 @@
 package com.essenza.draco.modules.inventory.infrastructure.inbound.rest;
 
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
 import com.essenza.draco.modules.inventory.application.services.InventoryMovementServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

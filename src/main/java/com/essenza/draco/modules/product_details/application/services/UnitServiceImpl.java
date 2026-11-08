@@ -15,10 +15,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.essenza.draco.modules.product_details.domain.dto.unit.SaveUnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitConversionDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitDto;
-import com.essenza.draco.modules.product_details.domain.dto.unit.UnitUsage;
+import com.essenza.draco.modules.product_details.application.dto.unit.SaveUnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitConversionDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitDto;
+import com.essenza.draco.modules.product_details.application.dto.unit.UnitUsage;
 import com.essenza.draco.modules.product_details.application.input.unit.ManageUnitsUseCase;
 import com.essenza.draco.modules.product_details.application.output.repository.UnitRepository;
 import com.essenza.draco.modules.product_details.domain.model.unit.UnitDimension;

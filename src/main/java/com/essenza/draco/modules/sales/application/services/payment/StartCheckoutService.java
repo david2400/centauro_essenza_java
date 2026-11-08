@@ -40,6 +40,7 @@ public class StartCheckoutService implements StartCheckoutUseCase {
     @Override
     public CheckoutDto start(StartCheckoutDto input) {
         PaymentSoporte.OrderView order = soporte.lockedOrder(input.orderId());
+        soporte.rejectThirdPartyCollection(order.id(), "en línea");
         PaymentMethod method = soporte.method(input.paymentMethodId());
         if (!method.isGateway()) {
             throw new PaymentRuleViolation("\"" + method.name() + "\" no es una pasarela en línea: registra el pago directamente.");

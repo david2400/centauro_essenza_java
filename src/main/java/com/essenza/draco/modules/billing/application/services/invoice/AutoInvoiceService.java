@@ -48,7 +48,8 @@ public class AutoInvoiceService implements AutoInvoiceUseCase {
             return;
         }
         // Las ventas de mostrador se facturan con PosSaleCompletedEvent (con los datos del comprador).
-        if (orders.find(orderId).map(order -> "POS".equals(order.channel())).orElse(false)) {
+        // Los subpedidos de vendedores externos los factura cada vendedor (marketplace).
+        if (orders.find(orderId).map(order -> "POS".equals(order.channel()) || order.thirdPartySale()).orElse(false)) {
             return;
         }
         issue.issue(IssueInvoiceDto.builder().orderId(orderId).build());

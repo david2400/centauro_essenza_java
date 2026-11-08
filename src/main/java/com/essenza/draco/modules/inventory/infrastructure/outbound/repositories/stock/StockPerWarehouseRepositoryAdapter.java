@@ -1,7 +1,7 @@
 package com.essenza.draco.modules.inventory.infrastructure.outbound.repositories.stock;
 
 import com.essenza.draco.modules.inventory.application.output.repository.StockPerWarehouseRepository;
-import com.essenza.draco.modules.inventory.domain.dto.StockPerWarehouseDto;
+import com.essenza.draco.modules.inventory.application.dto.StockPerWarehouseDto;
 import com.essenza.draco.modules.inventory.infrastructure.outbound.mappers.StockPerWarehouseMapper;
 import com.essenza.draco.modules.inventory.infrastructure.outbound.persistence.mysql.shop.StockPerWarehouseEntity;
 import lombok.RequiredArgsConstructor;

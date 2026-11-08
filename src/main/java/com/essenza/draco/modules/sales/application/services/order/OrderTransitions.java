@@ -17,6 +17,8 @@ import com.essenza.draco.modules.sales.domain.model.order.Fulfillment.PickLine;
 import com.essenza.draco.modules.sales.domain.model.order.OrderEventType;
 import com.essenza.draco.modules.sales.domain.model.order.OrderRuleViolation;
 import com.essenza.draco.shared.common.inventory.StockReservations;
+import com.essenza.draco.shared.common.marketplace.OfferStock;
+import com.essenza.draco.shared.common.marketplace.SellerCommissions;
 import com.essenza.draco.shared.common.sales.OrderPaidEvent;
 import com.essenza.draco.shared.exceptions.ConflictException;
 
@@ -33,14 +35,19 @@ public class OrderTransitions {
     private final StockReservations reservations;
     private final ApplicationEventPublisher publisher;
     private final OrderSoporte soporte;
+    private final OfferStock offers;
+    private final SellerCommissions commissions;
 
     public OrderTransitions(OrderLedger ledger, OrderRepository orders, StockReservations reservations,
-                            ApplicationEventPublisher publisher, OrderSoporte soporte) {
+                            ApplicationEventPublisher publisher, OrderSoporte soporte, OfferStock offers,
+                            SellerCommissions commissions) {
         this.ledger = ledger;
         this.orders = orders;
         this.reservations = reservations;
         this.publisher = publisher;
         this.soporte = soporte;
+        this.offers = offers;
+        this.commissions = commissions;
     }
 
     /** Estado de la orden bloqueada (para validar antes de actuar). */
@@ -84,7 +91,15 @@ public class OrderTransitions {
         if (header.stockManaged() && current.isPresent()) {
             applyStock(orderId, current.get(), target);
         }
+        if (current.isPresent()) {
+            // Marketplace (V19): las líneas de ofertas reservan la cantidad de la oferta, no la bodega.
+            applyOfferStock(orderId, current.get(), target);
+        }
         ledger.setState(orderId, target.name(), target == OrderStatus.CANCELLED ? OrderSoporte.blankToNull(reason) : null);
+        // Marketplace (fase 4): la comisión del vendedor externo sigue el estado de su subpedido.
+        ledger.marketplaceLink(orderId).filter(OrderLedger.MarketplaceLink::thirdParty).ifPresent(link ->
+                commissions.orderChanged(saleChange(orderId, link, details, current.map(Enum::name).orElse(header.state()),
+                        target)));
         if (target == OrderStatus.PAID) {
             soporte.redeemCoupon(details.couponId(), 1);
             // Facturación escucha tras el commit (factura automática si está activada).
@@ -109,6 +124,47 @@ public class OrderTransitions {
                 reservations.releaseOrder(id, false);
             } else if (from.stockCommitted()) {
                 reservations.restockOrder(id);
+            }
+        }
+    }
+
+    /**
+     * Importes de la venta sin impuestos (los precios de la tienda los incluyen): base gravable de
+     * las líneas, descuentos llevados a la misma proporción, envío e impuestos cobrados.
+     */
+    private SellerCommissions.SaleChange saleChange(Long orderId, OrderLedger.MarketplaceLink link, OrderDetails details,
+                                                    String from, OrderStatus target) {
+        java.math.BigDecimal zero = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal taxes = zero;
+        java.math.BigDecimal netExcl = zero;
+        java.math.BigDecimal netIncl = zero;
+        java.math.BigDecimal discountIncl = zero;
+        for (LineState line : ledger.lineStates(orderId)) {
+            java.math.BigDecimal total = OrderSoporte.zero(line.total());
+            netIncl = netIncl.add(total);
+            discountIncl = discountIncl.add(OrderSoporte.zero(line.discount())).add(OrderSoporte.zero(line.orderDiscount()));
+            if (line.tax() != null && line.tax().base() != null) {
+                netExcl = netExcl.add(line.tax().base());
+                taxes = taxes.add(OrderSoporte.zero(line.tax().amount()));
+            } else {
+                netExcl = netExcl.add(total);
+            }
+        }
+        java.math.BigDecimal discountExcl = netIncl.signum() > 0
+                ? discountIncl.multiply(netExcl).divide(netIncl, 2, java.math.RoundingMode.HALF_UP) : zero;
+        java.math.BigDecimal shipping = details.delivery() == null ? zero : OrderSoporte.zero(details.delivery().shippingAmount());
+        return new SellerCommissions.SaleChange(orderId, link.purchaseId(), link.sellerId(), details.orderNumber(),
+                target.name(), from, "COP", netExcl.add(discountExcl), discountExcl, shipping, taxes, java.time.Instant.now());
+    }
+
+    private void applyOfferStock(Long id, OrderStatus from, OrderStatus to) {
+        if (to == OrderStatus.PAID) {
+            offers.commitOrder(id);
+        } else if (to == OrderStatus.CANCELLED) {
+            if (from == OrderStatus.PENDING) {
+                offers.releaseOrder(id, false);
+            } else if (from.stockCommitted()) {
+                offers.restockOrder(id);
             }
         }
     }

@@ -6,7 +6,7 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.essenza.draco.modules.inventory.domain.dto.StockReservationDto;
+import com.essenza.draco.modules.inventory.application.dto.StockReservationDto;
 import com.essenza.draco.modules.inventory.application.input.stock.FindStockReservationsUseCase;
 import com.essenza.draco.modules.inventory.application.output.repository.StockReservationRepository;
 import com.essenza.draco.modules.inventory.domain.model.StockReservation;

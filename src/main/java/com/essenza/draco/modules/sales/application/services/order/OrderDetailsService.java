@@ -23,6 +23,7 @@ import com.essenza.draco.modules.sales.application.output.repository.OrderLedger
 import com.essenza.draco.modules.sales.application.output.repository.OrderLedger.OrderHeader;
 import com.essenza.draco.modules.sales.application.output.repository.OrderReferences;
 import com.essenza.draco.modules.sales.application.services.ProductOrderServiceImpl;
+import com.essenza.draco.modules.sales.application.services.customer.CustomerSync;
 import com.essenza.draco.modules.sales.domain.model.OrderStatus;
 import com.essenza.draco.modules.sales.domain.model.order.CustomerInfo;
 import com.essenza.draco.modules.sales.domain.model.order.DeliveryInfo;
@@ -55,16 +56,19 @@ public class OrderDetailsService implements SaveOrderDetailsUseCase, CreateFullO
     private final StockReservations reservations;
     private final ProductOrderServiceImpl lines;
     private final Duration reservationTtl;
+    private final CustomerSync customerSync;
 
     public OrderDetailsService(OrderLedger ledger, OrderReferences references, OrderSoporte soporte,
                                StockReservations reservations, ProductOrderServiceImpl lines,
-                               @Value("${essenza.orders.reservation-ttl:PT24H}") Duration reservationTtl) {
+                               @Value("${essenza.orders.reservation-ttl:PT24H}") Duration reservationTtl,
+                               CustomerSync customerSync) {
         this.ledger = ledger;
         this.references = references;
         this.soporte = soporte;
         this.reservations = reservations;
         this.lines = lines;
         this.reservationTtl = reservationTtl;
+        this.customerSync = customerSync;
     }
 
     @Override
@@ -83,6 +87,7 @@ public class OrderDetailsService implements SaveOrderDetailsUseCase, CreateFullO
         OrderDetails empty = soporte.details(id);
         OrderDetails header = header(empty, details, customer, delivery, channel);
         ledger.saveDetails(id, header);
+        customerSync.fromOrder(customer);
         for (CreateFullOrderDto.Line line : input.lines()) {
             lines.create(CreateProductOrderDto.builder().orderId(id).productId(line.productId()).skuId(line.skuId())
                     .quantity(line.quantity()).discount(line.discount()).build(), false);
@@ -148,6 +153,9 @@ public class OrderDetailsService implements SaveOrderDetailsUseCase, CreateFullO
             changed.add("reference");
         }
         ledger.saveDetails(orderId, next);
+        if (changed.contains("customer")) {
+            customerSync.fromOrder(customer);
+        }
         if (!Objects.equals(next.warehouseId(), current.warehouseId()) && lock.stockManaged()) {
             moveReservations(orderId, lock, next.warehouseId());
         }

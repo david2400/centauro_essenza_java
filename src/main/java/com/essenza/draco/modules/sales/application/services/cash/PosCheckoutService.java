@@ -38,11 +38,13 @@ public class PosCheckoutService implements PosCheckoutUseCase {
     private final FindOrderByIdUseCase findOrder;
     private final org.springframework.context.ApplicationEventPublisher events;
     private final com.essenza.draco.modules.sales.application.output.repository.OrderEventLog orderEvents;
+    private final com.essenza.draco.modules.sales.application.services.customer.CustomerSync customerSync;
 
     public PosCheckoutService(CashSoporte soporte, OrderLedger ledger, CreateProductOrderUseCase createLine,
                               RegisterPaymentUseCase registerPayment, FindOrderByIdUseCase findOrder,
                               org.springframework.context.ApplicationEventPublisher events,
-                              com.essenza.draco.modules.sales.application.output.repository.OrderEventLog orderEvents) {
+                              com.essenza.draco.modules.sales.application.output.repository.OrderEventLog orderEvents,
+                              com.essenza.draco.modules.sales.application.services.customer.CustomerSync customerSync) {
         this.soporte = soporte;
         this.ledger = ledger;
         this.createLine = createLine;
@@ -50,6 +52,7 @@ public class PosCheckoutService implements PosCheckoutUseCase {
         this.findOrder = findOrder;
         this.events = events;
         this.orderEvents = orderEvents;
+        this.customerSync = customerSync;
     }
 
     @Override
@@ -74,8 +77,10 @@ public class PosCheckoutService implements PosCheckoutUseCase {
         PosCheckoutDto.Buyer posBuyer = input.buyer();
         if (posBuyer != null && posBuyer.docNumber() != null && !posBuyer.docNumber().isBlank()) {
             try {
-                ledger.saveCustomer(orderId, com.essenza.draco.modules.sales.domain.model.order.CustomerInfo.of(null, null,
-                        posBuyer.docType(), posBuyer.docNumber(), posBuyer.name(), posBuyer.email(), posBuyer.phone(), null, null));
+                var buyerInfo = com.essenza.draco.modules.sales.domain.model.order.CustomerInfo.of(null, null,
+                        posBuyer.docType(), posBuyer.docNumber(), posBuyer.name(), posBuyer.email(), posBuyer.phone(), null, null);
+                ledger.saveCustomer(orderId, buyerInfo);
+                customerSync.fromOrder(buyerInfo);
             } catch (com.essenza.draco.modules.sales.domain.model.order.OrderRuleViolation ignored) {
                 // Datos del comprador incompletos: la venta sigue; la factura usa lo que llegó en el evento.
             }

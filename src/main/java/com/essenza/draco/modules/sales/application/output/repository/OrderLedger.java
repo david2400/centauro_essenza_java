@@ -111,4 +111,24 @@ public interface OrderLedger {
     void saveNumbering(OrderNumber numbering);
 
     boolean orderNumberExists(String orderNumber);
+
+    // ── V19: compras multivendedor ─────────────────────────────────────────────
+
+    /**
+     * Compra y vendedor de la orden. {@code thirdParty} = subpedido de un vendedor externo: vende
+     * su oferta (sin bodega propia), la cobra y la factura ese vendedor.
+     */
+    record MarketplaceLink(Long purchaseId, Long sellerId, boolean thirdParty) {
+    }
+
+    /**
+     * Subpedido de vendedor externo cuyas líneas salen todas de consignación (oferta con despacho
+     * de la plataforma): lo cobra la tienda y lo liquida al vendedor.
+     */
+    default boolean consignmentSale(Long orderId) {
+        return false;
+    }
+
+    /** Vacío si la orden no pertenece a una compra multivendedor. */
+    Optional<MarketplaceLink> marketplaceLink(Long orderId);
 }

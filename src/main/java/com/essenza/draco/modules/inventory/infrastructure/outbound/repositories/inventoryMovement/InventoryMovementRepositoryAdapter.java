@@ -1,7 +1,7 @@
 package com.essenza.draco.modules.inventory.infrastructure.outbound.repositories.inventoryMovement;
 
 import com.essenza.draco.modules.inventory.application.output.repository.InventoryMovementRepository;
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
 import com.essenza.draco.modules.inventory.infrastructure.outbound.mappers.InventoryMovementMapper;
 import com.essenza.draco.modules.inventory.infrastructure.outbound.persistence.mysql.shop.InventoryMovementEntity;
 import lombok.RequiredArgsConstructor;

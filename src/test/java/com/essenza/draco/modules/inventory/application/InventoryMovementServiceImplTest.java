@@ -10,8 +10,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
-import com.essenza.draco.modules.inventory.domain.dto.SkuRef;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.SkuRef;
 import com.essenza.draco.modules.inventory.application.output.repository.InventoryMovementRepository;
 import com.essenza.draco.modules.inventory.application.output.repository.LegacyStockProjectionPort;
 import com.essenza.draco.modules.inventory.application.output.repository.MainWarehousePort;

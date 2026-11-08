@@ -1,8 +1,8 @@
 package com.essenza.draco.modules.product_details.application.output.repository;
 
-import com.essenza.draco.modules.product_details.domain.dto.type_product.CreateTypeProductDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product.TypeProductDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product.UpdateTypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.CreateTypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.TypeProductDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product.UpdateTypeProductDto;
 
 import java.util.List;
 import java.util.Optional;

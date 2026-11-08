@@ -3,6 +3,7 @@ package com.essenza.draco.modules.devolution.application.services.flow;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.essenza.draco.modules.devolution.application.dto.flow.InspectReturnDto;
@@ -13,6 +14,7 @@ import com.essenza.draco.modules.devolution.domain.model.ItemCondition;
 import com.essenza.draco.modules.devolution.domain.model.ReturnCase;
 import com.essenza.draco.modules.devolution.domain.model.ReturnItem;
 import com.essenza.draco.shared.common.inventory.StockReturns;
+import com.essenza.draco.shared.common.marketplace.ConsignmentReturns;
 import com.essenza.draco.shared.common.sales.OrderReturns.ReturnableLine;
 import com.essenza.draco.shared.common.sales.OrderReturns.ReturnableOrder;
 
@@ -26,10 +28,12 @@ public class InspectReturnService implements InspectReturnUseCase {
 
     private final ReturnSoporte soporte;
     private final StockReturns stock;
+    private final ConsignmentReturns consignment;
 
-    public InspectReturnService(ReturnSoporte soporte, StockReturns stock) {
+    public InspectReturnService(ReturnSoporte soporte, StockReturns stock, ConsignmentReturns consignment) {
         this.soporte = soporte;
         this.stock = stock;
+        this.consignment = consignment;
     }
 
     @Override
@@ -54,9 +58,17 @@ public class InspectReturnService implements InspectReturnUseCase {
                 input == null ? null : input.warehouseId(), inspections, values,
                 input == null ? null : input.notes(), ReturnSoporte.now());
         if (!restock.isEmpty()) {
-            stock.restock(returnCase.id(), returnCase.warehouseId(), restock.stream()
+            // Lo vendido desde consignación vuelve al stock del vendedor; el resto, al inventario propio.
+            Set<Long> consigned = consignment.receiveReturn(returnCase.orderId(), returnCase.id(), returnCase.warehouseId(),
+                    restock.stream().map(item -> new ConsignmentReturns.ReturnedLine(item.productOrderId(), item.skuId(),
+                            item.received())).toList());
+            List<StockReturns.ReturnedUnit> own = restock.stream()
+                    .filter(item -> !consigned.contains(item.productOrderId()))
                     .map(item -> new StockReturns.ReturnedUnit(item.productId(), item.skuId(), item.received()))
-                    .toList());
+                    .toList();
+            if (!own.isEmpty()) {
+                stock.restock(returnCase.id(), returnCase.warehouseId(), own);
+            }
         }
         return soporte.toDto(soporte.save(returnCase));
     }

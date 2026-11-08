@@ -104,6 +104,10 @@ class InvoiceSoporte {
 
     /** Orden pagada y con líneas: lista para facturar. */
     static void checkBillable(BillableOrder order) {
+        if (order.thirdPartySale()) {
+            throw new ConflictException("La orden " + order.id() + " es un subpedido de un vendedor externo: la factura "
+                    + "al comprador la emite ese vendedor.");
+        }
         if (!PAID_STATES.contains(order.state())) {
             throw new ConflictException("Solo se facturan órdenes pagadas (la orden " + order.id() + " está "
                     + order.state() + ").");

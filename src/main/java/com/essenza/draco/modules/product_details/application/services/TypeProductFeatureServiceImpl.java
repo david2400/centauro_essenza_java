@@ -1,9 +1,9 @@
 package com.essenza.draco.modules.product_details.application.services;
 
 import com.essenza.draco.modules.product_details.application.input.type_product_feature.*;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.CreateTypeProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.TypeProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.type_product_feature.UpdateTypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.CreateTypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.TypeProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.type_product_feature.UpdateTypeProductFeatureDto;
 import com.essenza.draco.modules.product_details.application.output.repository.TypeProductFeatureRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

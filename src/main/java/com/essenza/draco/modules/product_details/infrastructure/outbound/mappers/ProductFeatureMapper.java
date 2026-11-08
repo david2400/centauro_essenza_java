@@ -1,8 +1,8 @@
 package com.essenza.draco.modules.product_details.infrastructure.outbound.mappers;
 
-import com.essenza.draco.modules.product_details.domain.dto.product_feature.CreateProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.product_feature.ProductFeatureDto;
-import com.essenza.draco.modules.product_details.domain.dto.product_feature.UpdateProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.product_feature.CreateProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.product_feature.ProductFeatureDto;
+import com.essenza.draco.modules.product_details.application.dto.product_feature.UpdateProductFeatureDto;
 import com.essenza.draco.modules.product_details.infrastructure.outbound.persistence.mysql.shop.ProductFeatureEntity;
 import org.mapstruct.*;
 

@@ -170,6 +170,10 @@ public class ProductOrderServiceImpl implements CreateProductOrderUseCase,
             throw new ConflictException("Solo se modifican las líneas de una orden pendiente (la orden " + orderId
                     + " está " + order.state() + ").");
         }
+        if (ledger.marketplaceLink(orderId).map(OrderLedger.MarketplaceLink::thirdParty).orElse(false)) {
+            throw new ConflictException("La orden " + orderId + " es el subpedido de un vendedor externo: sus productos "
+                    + "salen de la oferta del vendedor. Cancélalo y registra otra compra para cambiarlos.");
+        }
         return order;
     }
 
