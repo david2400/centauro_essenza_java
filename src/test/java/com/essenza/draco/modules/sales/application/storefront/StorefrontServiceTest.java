@@ -32,9 +32,9 @@ import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.BuyerInput;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.CheckoutRequest;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.LineInput;
-import com.essenza.draco.modules.sales.application.output.storefront.ShippingRateStore;
+import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingRequest;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontAccessStore;
-import com.essenza.draco.modules.sales.domain.model.storefront.ShippingRates;
+import com.essenza.draco.shared.common.logistics.ShippingQuotes;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore.OfferRow;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore.PaymentOption;
@@ -56,7 +56,7 @@ class StorefrontServiceTest {
     static final long COMPANY = 7;
     StorefrontReadStore read;
     StorefrontAccessStore access;
-    ShippingRateStore shippingRates;
+    ShippingQuotes shippingQuotes;
     PurchaseService purchases;
     StartPurchaseCheckoutService checkout;
     StorefrontService store;
@@ -66,7 +66,7 @@ class StorefrontServiceTest {
     void setUp() {
         read = mock(StorefrontReadStore.class);
         access = mock(StorefrontAccessStore.class);
-        shippingRates = mock(ShippingRateStore.class);
+        shippingQuotes = mock(ShippingQuotes.class);
         purchases = mock(PurchaseService.class);
         checkout = mock(StartPurchaseCheckoutService.class);
         store = service(true, "7", 3);
@@ -74,14 +74,14 @@ class StorefrontServiceTest {
     }
 
     StorefrontService service(boolean enabled, String company, int perHour) {
-        return new StorefrontService(read, access, shippingRates, purchases, checkout, Clock.fixed(Instant.parse("2026-11-09T15:00:00Z"), ZoneOffset.UTC),
+        return new StorefrontService(read, access, shippingQuotes, purchases, checkout, Clock.fixed(Instant.parse("2026-11-09T15:00:00Z"), ZoneOffset.UTC),
                 enabled, company, "Essenza", "COP", "https://tienda.example.co/es/pedido/{token}", new BigDecimal("8000"), perHour);
     }
 
     static CheckoutRequest request(Long paymentMethod) {
         return new CheckoutRequest(new BuyerInput("Ana Pérez", "CC", "1020304050", "ana@x.co", "3001234567"),
-                new AddressInput(null, null, "Calle 10 # 20-30", "Apto 301", "Medellín", "Antioquia", "Portería"),
-                List.of(new LineInput(11L, null, 2), new LineInput(12L, 90L, 1)), paymentMethod, true);
+                new AddressInput(null, null, "Calle 10 # 20-30", "Apto 301", "Medellín", "Antioquia", "Portería", 1L, 10L, 100L, null),
+                List.of(new LineInput(11L, null, 2), new LineInput(12L, 90L, 1)), paymentMethod, true, null);
     }
 
     static PurchaseDetailDto purchase(BigDecimal pending) {
@@ -135,7 +135,7 @@ class StorefrontServiceTest {
     void checkoutRejectsBadInputBeforeTouchingStock() {
         assertThatThrownBy(() -> store.checkout(request(99L), "2.2.2.2")).isInstanceOf(OrderRuleViolation.class)
                 .hasMessageContaining("medio de pago");
-        CheckoutRequest noTerms = new CheckoutRequest(request(5L).buyer(), request(5L).delivery(), request(5L).lines(), 5L, false);
+        CheckoutRequest noTerms = new CheckoutRequest(request(5L).buyer(), request(5L).delivery(), request(5L).lines(), 5L, false, null);
         assertThatThrownBy(() -> store.checkout(noTerms, "3.3.3.3")).hasMessageContaining("términos");
         verify(purchases, never()).create(any());
     }
@@ -189,45 +189,66 @@ class StorefrontServiceTest {
         verify(purchases, never()).get(anyLong());
     }
 
-    @Test
-    void shippingUsesTheMostSpecificRateAndFreeShipping() {
-        // Sin tarifas: valor fijo de la configuración.
-        assertThat(store.shipping("Antioquia", "Medellín", BigDecimal.ZERO).amount()).isEqualByComparingTo("8000");
-        when(shippingRates.rates(COMPANY)).thenReturn(List.of(
-                new ShippingRates.Rate(1, null, null, new BigDecimal("15000"), null, 3, 6, true),
-                new ShippingRates.Rate(2, "Antioquia", null, new BigDecimal("10000"), null, 2, 3, true),
-                new ShippingRates.Rate(3, "Antioquia", "Medellín", new BigDecimal("6000"), new BigDecimal("200000"), 1, 1, true),
-                new ShippingRates.Rate(4, "San Andrés", null, new BigDecimal("40000"), null, null, null, false)));
-        assertThat(store.shipping("antioquia", "MEDELLIN", new BigDecimal("50000")).amount()).isEqualByComparingTo("6000");
-        var free = store.shipping("Antioquia", "Medellín", new BigDecimal("200000"));
-        assertThat(free.free()).isTrue();
-        assertThat(free.amount()).isEqualByComparingTo("0");
-        assertThat(store.shipping("Antioquia", "Envigado", BigDecimal.ZERO).amount()).isEqualByComparingTo("10000");
-        assertThat(store.shipping("San Andrés", "San Andrés", BigDecimal.ZERO).amount()).isEqualByComparingTo("15000");
+    static ShippingQuotes.Option option(long card, long carrier, String name, String total, boolean free) {
+        return new ShippingQuotes.Option(card, carrier, name, "LOCAL", null, BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ONE, false,
+                new BigDecimal(total), BigDecimal.ZERO, free ? BigDecimal.ZERO : new BigDecimal(total), free, 1, 2, null,
+                java.time.LocalDate.of(2026, 11, 11));
+    }
 
-        // Sin tarifa general, un lugar sin tarifa no se puede pedir.
-        when(shippingRates.rates(COMPANY)).thenReturn(List.of(
-                new ShippingRates.Rate(3, "Antioquia", "Medellín", new BigDecimal("6000"), null, 1, 1, true)));
-        assertThat(store.shipping("Cundinamarca", "Bogotá", BigDecimal.ZERO).available()).isFalse();
+    @Test
+    void shippingUsesTheLogisticsTariffOrTheFixedAmountWithoutOne() {
+        var lines = List.of(new LineInput(11L, null, 2));
+        // Sin tarifario: valor fijo de la configuración.
+        var fixed = store.shipping(new ShippingRequest(1L, 10L, 100L, "Medellín", "Antioquia", lines), "5.5.5.5");
+        assertThat(fixed.options()).singleElement().satisfies(o -> assertThat(o.amount()).isEqualByComparingTo("8000"));
+        verify(shippingQuotes, never()).quote(anyLong(), any());
+
+        when(shippingQuotes.hasTariff(COMPANY)).thenReturn(true);
+        when(read.ownPrices(List.of(11L))).thenReturn(Map.of(11L, new BigDecimal("100000")));
+        when(shippingQuotes.quote(eq(COMPANY), any())).thenReturn(new ShippingQuotes.QuoteResult("LOCAL", null, 1L,
+                List.of(option(3, 1, "Coordinadora", "6000", false), option(4, 2, "Servientrega", "9000", false))));
+        var quoted = store.shipping(new ShippingRequest(1L, 10L, 100L, "Medellín", "Antioquia", lines), "5.5.5.5");
+        assertThat(quoted.options()).extracting(o -> o.carrier()).containsExactly("Coordinadora", "Servientrega");
+        ArgumentCaptor<ShippingQuotes.QuoteRequest> asked = ArgumentCaptor.forClass(ShippingQuotes.QuoteRequest.class);
+        verify(shippingQuotes).quote(eq(COMPANY), asked.capture());
+        assertThat(asked.getValue().cityId()).isEqualTo(100L);
+        assertThat(asked.getValue().orderSubtotal()).isEqualByComparingTo("200000"); // precio vigente, no el del navegador
+        assertThat(asked.getValue().items()).singleElement().satisfies(i -> assertThat(i.quantity()).isEqualTo(2));
+        assertThat(asked.getValue().destinationLabel()).isEqualTo("Medellín, Antioquia");
+
+        assertThatThrownBy(() -> store.shipping(new ShippingRequest(1L, 10L, null, "Medellín", "Antioquia", lines), "5.5.5.5"))
+                .hasMessageContaining("ciudad");
+
+        // Con tarifario y sin cobertura: no se puede comprar.
+        when(shippingQuotes.quote(eq(COMPANY), any())).thenReturn(new ShippingQuotes.QuoteResult("NATIONAL", null, 1L, List.of()));
+        assertThat(store.shipping(new ShippingRequest(1L, 20L, 200L, "Bogotá", "Cundinamarca", lines), "5.5.5.5").available()).isFalse();
         CheckoutRequest bogota = new CheckoutRequest(request(5L).buyer(),
-                new AddressInput(null, null, "Calle 1 # 2-3", null, "Bogotá", "Cundinamarca", null), request(5L).lines(), 5L, true);
+                new AddressInput(null, null, "Calle 1 # 2-3", null, "Bogotá", "Cundinamarca", null, 1L, 20L, 200L, null),
+                request(5L).lines(), 5L, true, null);
         assertThatThrownBy(() -> store.checkout(bogota, "7.7.7.7")).isInstanceOf(OrderRuleViolation.class)
                 .hasMessageContaining("Bogotá");
         verify(purchases, never()).create(any());
     }
 
     @Test
-    void checkoutChargesTheMatchingRateUsingCurrentPrices() {
-        when(shippingRates.rates(COMPANY)).thenReturn(List.of(
-                new ShippingRates.Rate(3, "Antioquia", "Medellín", new BigDecimal("6000"), new BigDecimal("300000"), 1, 1, true)));
-        when(read.ownPrices(List.of(11L))).thenReturn(Map.of(11L, new BigDecimal("100000")));
-        when(read.offerPrices(COMPANY, "COP", List.of(90L))).thenReturn(Map.of(90L, new BigDecimal("99000")));
+    void checkoutRequotesAndKeepsTheChosenCarrier() {
+        when(shippingQuotes.hasTariff(COMPANY)).thenReturn(true);
+        when(shippingQuotes.quote(eq(COMPANY), any())).thenReturn(new ShippingQuotes.QuoteResult("LOCAL", null, 1L,
+                List.of(option(3, 1, "Coordinadora", "6000", false), option(4, 2, "Servientrega", "9000", false))));
         when(purchases.create(any())).thenReturn(purchase(new BigDecimal("299000")));
         when(checkout.start(eq(44L), any())).thenReturn(new PurchaseCheckoutDto("R", BigDecimal.ONE, "https://x", List.of()));
-        store.checkout(request(5L), "8.8.8.8");
+        CheckoutRequest chosen = new CheckoutRequest(request(5L).buyer(), request(5L).delivery(), request(5L).lines(), 5L, true, 4L);
+        store.checkout(chosen, "8.8.8.8");
         ArgumentCaptor<CreatePurchaseRequest> created = ArgumentCaptor.forClass(CreatePurchaseRequest.class);
         verify(purchases).create(created.capture());
-        // 2 × 100.000 + 99.000 = 299.000 < 300.000: se cobra el envío.
-        assertThat(created.getValue().details().delivery().shippingAmount()).isEqualByComparingTo("6000");
+        var delivery = created.getValue().details().delivery();
+        assertThat(delivery.shippingAmount()).isEqualByComparingTo("9000");
+        assertThat(delivery.carrierId()).isEqualTo(2L);
+        assertThat(delivery.cityId()).isEqualTo(100L);
+        assertThat(delivery.promisedDate()).isEqualTo(java.time.LocalDate.of(2026, 11, 11));
+
+        CheckoutRequest gone = new CheckoutRequest(request(5L).buyer(), request(5L).delivery(), request(5L).lines(), 5L, true, 99L);
+        assertThatThrownBy(() -> store.checkout(gone, "8.8.8.9")).isInstanceOf(ConflictException.class)
+                .hasMessageContaining("ya no está disponible");
     }
 }

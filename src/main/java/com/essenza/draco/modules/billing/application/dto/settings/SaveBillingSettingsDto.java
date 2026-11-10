@@ -18,6 +18,10 @@ public class SaveBillingSettingsDto {
     private String address;
     private String city;
     private String department;
+    /** Catálogo del servicio parametros; city y department llegan con los nombres ya resueltos. */
+    private Long countryId;
+    private Long stateId;
+    private Long cityId;
     private String email;
     private String phone;
     private String environment;

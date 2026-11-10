@@ -17,7 +17,6 @@ import com.essenza.draco.modules.shipping_logistics.product_distribution.applica
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.shipping_cost.DeleteShippingCostUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.shipping_cost.FindShippingCostByIdUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.shipping_cost.FindShippingCostsUseCase;
-import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.shipping_cost.CalculateShippingCostUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.shipping_cost.ShippingCostDto;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.shipping_cost.CreateShippingCostDto;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.shipping_cost.UpdateShippingCostDto;
@@ -37,20 +36,17 @@ public class ShippingCostController {
     private final DeleteShippingCostUseCase deleteShippingCost;
     private final FindShippingCostByIdUseCase findShippingCostById;
     private final FindShippingCostsUseCase findShippingCosts;
-    private final CalculateShippingCostUseCase calculateShippingCost;
 
     public ShippingCostController(CreateShippingCostUseCase createShippingCost,
                                  UpdateShippingCostUseCase updateShippingCost,
                                  DeleteShippingCostUseCase deleteShippingCost,
                                  FindShippingCostByIdUseCase findShippingCostById,
-                                 FindShippingCostsUseCase findShippingCosts,
-                                 CalculateShippingCostUseCase calculateShippingCost) {
+                                 FindShippingCostsUseCase findShippingCosts) {
         this.createShippingCost = createShippingCost;
         this.updateShippingCost = updateShippingCost;
         this.deleteShippingCost = deleteShippingCost;
         this.findShippingCostById = findShippingCostById;
         this.findShippingCosts = findShippingCosts;
-        this.calculateShippingCost = calculateShippingCost;
     }
 
     @Operation(summary = "Create shipping cost", description = "Creates a new shipping cost calculation and returns it with its generated ID")
@@ -117,24 +113,5 @@ public class ShippingCostController {
     public ResponseEntity<Void> delete(@Parameter(description = "Shipping cost ID", required = true) @PathVariable Long id) {
         boolean deleted = deleteShippingCost.deleteById(id);
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-    }
-
-    @Operation(summary = "Calculate shipping cost", description = "Calculates shipping cost automatically based on carrier, addresses, weight and volume")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Shipping cost calculated",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ShippingCostDto.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Carrier not found", content = @Content)
-    })
-    @PostMapping("/calculate")
-    public ResponseEntity<ShippingCostDto> calculate(
-            @Parameter(description = "Carrier ID", required = true) @RequestParam Long carrierId,
-            @Parameter(description = "Origin address", required = true) @RequestParam String originAddress,
-            @Parameter(description = "Destination address", required = true) @RequestParam String destinationAddress,
-            @Parameter(description = "Package weight in kg") @RequestParam(required = false) BigDecimal weight,
-            @Parameter(description = "Package volume in cubic meters") @RequestParam(required = false) BigDecimal volume) {
-        
-        ShippingCostDto calculated = calculateShippingCost.calculateCost(carrierId, originAddress, destinationAddress, weight, volume);
-        return ResponseEntity.ok(calculated);
     }
 }

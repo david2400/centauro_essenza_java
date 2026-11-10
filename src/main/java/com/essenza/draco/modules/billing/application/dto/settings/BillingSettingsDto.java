@@ -24,6 +24,12 @@ public class BillingSettingsDto {
     private String address;
     private String city;
     private String department;
+    @Schema(description = "País (catálogo del servicio parametros)")
+    private Long countryId;
+    @Schema(description = "Departamento (catálogo del servicio parametros)")
+    private Long stateId;
+    @Schema(description = "Ciudad (catálogo del servicio parametros); city y department guardan sus nombres")
+    private Long cityId;
     private String email;
     private String phone;
     @Schema(description = "TEST o PRODUCTION")

@@ -32,6 +32,9 @@ public class BillingSettingsRepositoryAdapter implements BillingSettingsReposito
         e.setAddress(s.address());
         e.setCity(s.city());
         e.setDepartment(s.department());
+        e.setCountryId(s.countryId());
+        e.setStateId(s.stateId());
+        e.setCityId(s.cityId());
         e.setEmail(s.email());
         e.setPhone(s.phone());
         e.setEnvironment(s.environment().name());
@@ -47,6 +50,6 @@ public class BillingSettingsRepositoryAdapter implements BillingSettingsReposito
         return new BillingSettings(e.getNit(), e.getLegalName(), e.getTradeName(), e.getTaxRegime(), e.getResponsibilities(),
                 e.getAddress(), e.getCity(), e.getDepartment(), e.getEmail(), e.getPhone(),
                 BillingEnvironment.parse(e.getEnvironment()), e.getProvider(), e.getSoftwareId(), e.getSoftwarePin(),
-                Boolean.TRUE.equals(e.getAutoInvoice()), e.getInvoiceFooter());
+                Boolean.TRUE.equals(e.getAutoInvoice()), e.getInvoiceFooter(), e.getCountryId(), e.getStateId(), e.getCityId());
     }
 }

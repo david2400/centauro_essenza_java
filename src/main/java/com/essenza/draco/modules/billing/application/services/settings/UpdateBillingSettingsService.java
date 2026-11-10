@@ -40,7 +40,8 @@ public class UpdateBillingSettingsService implements UpdateBillingSettingsUseCas
                 in.getEnvironment() == null ? current.environment() : BillingEnvironment.parse(in.getEnvironment()),
                 provider, in.getSoftwareId(),
                 in.getSoftwarePin() == null || in.getSoftwarePin().isBlank() ? current.softwarePin() : in.getSoftwarePin(),
-                in.getAutoInvoice() != null ? in.getAutoInvoice() : current.autoInvoice(), in.getInvoiceFooter());
+                in.getAutoInvoice() != null ? in.getAutoInvoice() : current.autoInvoice(), in.getInvoiceFooter(),
+                in.getCountryId(), in.getStateId(), in.getCityId());
         return GetBillingSettingsService.toDto(settings.save(next), providers);
     }
 }

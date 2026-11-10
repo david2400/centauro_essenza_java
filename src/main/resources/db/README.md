@@ -16,6 +16,18 @@
 - Las relaciones padre-hijo que sí se usan (`AttributeOptionEntity.attribute`, `TemplateAttributeEntity.template`)
   quedan EAGER por la misma razón. En la práctica se cargan desde la colección del padre, así que no agregan consultas.
 
+## Tarifario de envíos (logística)
+
+Tablas `shipping_rate_cards`, `shipping_rates`, `shipping_rate_brackets`, `shipping_zones`, `shipping_zone_places` y
+`shipping_quote_misses` (entidades de solo esquema en `shipping_logistics/tariff/.../schema`). Las crea Hibernate.
+
+- `shipping_rate_cards.carrier_id` apunta a `carriers` sin FK declarada: `carriers` tiene borrado lógico (ver arriba).
+- `shipping_zone_places.place_key` es único por empresa: un lugar del catálogo pertenece a una sola zona.
+- Las franjas de peso deben ser continuas desde 0 kg; eso lo valida la aplicación (una CHECK no puede verlo entre filas).
+- `storefront_shipping_rates` quedó como histórico: la tienda en línea cotiza con el tarifario. Se puede borrar cuando
+  ya no haga falta.
+- `shipping_costs` y `delivery_estimates` quedan como historial de solo lectura (el cálculo por dirección escrita se retiró).
+
 ## Arranque
 
 | Ambiente | `ddl-auto` | Datos de referencia |

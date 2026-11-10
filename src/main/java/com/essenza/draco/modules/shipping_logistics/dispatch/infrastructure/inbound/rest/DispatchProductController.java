@@ -10,10 +10,8 @@ import com.essenza.draco.modules.shipping_logistics.dispatch.application.input.d
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.input.dispatch_product.DeleteDispatchProductUseCase;
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.input.dispatch_product.FindDispatchProductByIdUseCase;
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.input.dispatch_product.FindDispatchProductsUseCase;
-import com.essenza.draco.modules.shipping_logistics.dispatch.application.input.dispatch_product.GetShippingEstimateUseCase;
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.dto.dispatch_product.DispatchProductDto;
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.dto.dispatch_product.CreateDispatchProductDto;
-import com.essenza.draco.modules.shipping_logistics.dispatch.application.dto.dispatch_product.ShippingEstimateDto;
 import com.essenza.draco.modules.shipping_logistics.dispatch.application.dto.dispatch_product.UpdateDispatchProductDto;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,20 +38,17 @@ public class DispatchProductController {
     private final DeleteDispatchProductUseCase deleteDispatchProduct;
     private final FindDispatchProductByIdUseCase findDispatchProductById;
     private final FindDispatchProductsUseCase findDispatchProducts;
-    private final GetShippingEstimateUseCase getShippingEstimate;
 
     public DispatchProductController(CreateDispatchProductUseCase createDispatchProduct,
                                      UpdateDispatchProductUseCase updateDispatchProduct,
                                      DeleteDispatchProductUseCase deleteDispatchProduct,
                                      FindDispatchProductByIdUseCase findDispatchProductById,
-                                     FindDispatchProductsUseCase findDispatchProducts,
-                                     GetShippingEstimateUseCase getShippingEstimate) {
+                                     FindDispatchProductsUseCase findDispatchProducts) {
         this.createDispatchProduct = createDispatchProduct;
         this.updateDispatchProduct = updateDispatchProduct;
         this.deleteDispatchProduct = deleteDispatchProduct;
         this.findDispatchProductById = findDispatchProductById;
         this.findDispatchProducts = findDispatchProducts;
-        this.getShippingEstimate = getShippingEstimate;
     }
 
     @Operation(summary = "Create dispatch product", description = "Creates a new dispatch product and returns it with its generated ID")
@@ -120,35 +115,5 @@ public class DispatchProductController {
     public ResponseEntity<Void> delete(@Parameter(description = "Dispatch product ID", required = true) @PathVariable Long id) {
         boolean deleted = deleteDispatchProduct.deleteById(id);
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-    }
-    
-    @Operation(summary = "Get shipping estimate for product dispatch", 
-              description = "Returns shipping cost and delivery date estimates for a specific carrier and location")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Shipping estimate retrieved",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ShippingEstimateDto.class))),
-            @ApiResponse(responseCode = "404", description = "Service not available for carrier", content = @Content)
-    })
-    @GetMapping("/shipping-estimate")
-    public CompletableFuture<ResponseEntity<ShippingEstimateDto>> getShippingEstimateForDispatch(
-            @Parameter(description = "Carrier code (FEDEX, UPS, DHL, CORREOS)", required = true) 
-                @RequestParam String carrierCode,
-            @Parameter(description = "Origin zip/postal code", required = true) 
-                @RequestParam String originZip,
-            @Parameter(description = "Destination zip/postal code", required = true) 
-                @RequestParam String destinationZip,
-            @Parameter(description = "Package weight in kg") 
-                @RequestParam(required = false, defaultValue = "1.0") BigDecimal weight,
-            @Parameter(description = "Service type (express, standard, etc.)") 
-                @RequestParam(required = false, defaultValue = "standard") String serviceType) {
-        
-        return getShippingEstimate.getShippingEstimate(carrierCode, originZip, destinationZip, weight, serviceType)
-                .thenApply(estimate -> {
-                    if (estimate != null && estimate.getShippingCost() != null) {
-                        return ResponseEntity.ok(estimate);
-                    } else {
-                        return ResponseEntity.notFound().build();
-                    }
-                });
     }
 }

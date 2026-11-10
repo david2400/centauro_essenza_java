@@ -36,8 +36,9 @@ import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.SkuDto;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.StoreInfoDto;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.SubOrderViewDto;
+import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingOptionDto;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingQuoteDto;
-import com.essenza.draco.modules.sales.application.output.storefront.ShippingRateStore;
+import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingRequest;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontAccessStore;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore;
 import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore.OfferRow;
@@ -47,11 +48,11 @@ import com.essenza.draco.modules.sales.application.services.payment.StartPurchas
 import com.essenza.draco.modules.sales.application.services.purchase.PurchaseService;
 import com.essenza.draco.modules.sales.domain.model.order.OrderRuleViolation;
 import com.essenza.draco.modules.sales.domain.model.storefront.RateLimiter;
-import com.essenza.draco.modules.sales.domain.model.storefront.ShippingRates;
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules;
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules.Address;
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules.Buyer;
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules.CartLine;
+import com.essenza.draco.shared.common.logistics.ShippingQuotes;
 import com.essenza.draco.shared.exceptions.ConflictException;
 import com.essenza.draco.shared.exceptions.NotFoundException;
 import com.essenza.draco.shared.security.ActorScope;
@@ -75,7 +76,7 @@ public class StorefrontService {
 
     private final StorefrontReadStore read;
     private final StorefrontAccessStore access;
-    private final ShippingRateStore shippingRates;
+    private final ShippingQuotes shippingQuotes;
     private final PurchaseService purchases;
     private final StartPurchaseCheckoutService checkout;
     private final Clock clock;
@@ -87,9 +88,10 @@ public class StorefrontService {
     private final BigDecimal shipping;
     private final RateLimiter checkoutLimiter;
     private final RateLimiter lookupLimiter;
+    private final RateLimiter quoteLimiter;
 
     @Autowired
-    public StorefrontService(StorefrontReadStore read, StorefrontAccessStore access, ShippingRateStore shippingRates,
+    public StorefrontService(StorefrontReadStore read, StorefrontAccessStore access, ShippingQuotes shippingQuotes,
                              PurchaseService purchases, StartPurchaseCheckoutService checkout,
                              @Value("${essenza.storefront.enabled:false}") boolean enabled,
                              @Value("${essenza.storefront.company-id:}") String companyId,
@@ -98,16 +100,16 @@ public class StorefrontService {
                              @Value("${essenza.storefront.return-url:}") String returnUrl,
                              @Value("${essenza.storefront.shipping-amount:0}") BigDecimal shipping,
                              @Value("${essenza.storefront.checkouts-per-hour:10}") int checkoutsPerHour) {
-        this(read, access, shippingRates, purchases, checkout, Clock.systemUTC(), enabled, companyId, storeName, currency, returnUrl, shipping,
+        this(read, access, shippingQuotes, purchases, checkout, Clock.systemUTC(), enabled, companyId, storeName, currency, returnUrl, shipping,
                 checkoutsPerHour);
     }
 
-    public StorefrontService(StorefrontReadStore read, StorefrontAccessStore access, ShippingRateStore shippingRates,
+    public StorefrontService(StorefrontReadStore read, StorefrontAccessStore access, ShippingQuotes shippingQuotes,
                              PurchaseService purchases, StartPurchaseCheckoutService checkout, Clock clock, boolean enabled, String companyId, String storeName,
                              String currency, String returnUrl, BigDecimal shipping, int checkoutsPerHour) {
         this.read = read;
         this.access = access;
-        this.shippingRates = shippingRates;
+        this.shippingQuotes = shippingQuotes;
         this.purchases = purchases;
         this.checkout = checkout;
         this.clock = clock;
@@ -123,6 +125,7 @@ public class StorefrontService {
         this.shipping = shipping == null || shipping.signum() < 0 ? BigDecimal.ZERO : shipping;
         this.checkoutLimiter = new RateLimiter(Math.max(1, checkoutsPerHour), Duration.ofHours(1), 10_000);
         this.lookupLimiter = new RateLimiter(120, Duration.ofMinutes(10), 10_000);
+        this.quoteLimiter = new RateLimiter(300, Duration.ofMinutes(10), 10_000);
     }
 
     // ── Catálogo ───────────────────────────────────────────────────────────
@@ -219,21 +222,49 @@ public class StorefrontService {
 
     // ── Envío ──────────────────────────────────────────────────────────────
 
-    /** Costo de envío para un lugar y un subtotal (para mostrarlo antes de pagar; el definitivo lo calcula el checkout). */
-    public ShippingQuoteDto shipping(String state, String city, BigDecimal subtotal) {
+    /**
+     * Opciones de envío para el destino y el carrito (peso y medidas del catálogo, envío gratis según los precios
+     * vigentes). Solo para mostrarlas antes de pagar: el checkout vuelve a cotizar y nunca toma el valor del navegador.
+     */
+    public ShippingQuoteDto shipping(ShippingRequest request, String clientKey) {
         long company = company();
-        return quote(company, state, city, subtotal == null || subtotal.signum() < 0 ? BigDecimal.ZERO : subtotal)
-                .map(q -> new ShippingQuoteDto(true, q.amount(), q.freeFrom(), q.minDays(), q.maxDays(), q.free()))
-                .orElseGet(() -> new ShippingQuoteDto(false, null, null, null, null, false));
+        if (!quoteLimiter.tryAcquire(clientKey, clock.instant())) {
+            throw new ConflictException("Demasiadas consultas. Espera un momento e inténtalo de nuevo.");
+        }
+        if (request == null) {
+            throw new OrderRuleViolation("Faltan el destino y el carrito.");
+        }
+        List<CartLine> lines = StorefrontRules.cart(request.lines() == null ? null : request.lines().stream()
+                .map(l -> l == null ? null : new CartLine(l.skuId(), l.offerId(), l.quantity() == null ? 0 : l.quantity())).toList());
+        List<ShippingOptionDto> options = shippingOptions(company, request.countryId(), request.stateId(), request.cityId(),
+                label(request.city(), request.state()), lines);
+        return new ShippingQuoteDto(!options.isEmpty(), options);
     }
 
-    /** Sin tarifas configuradas rige el valor fijo de la configuración; con tarifas, la que aplique o ninguna. */
-    java.util.Optional<ShippingRates.Quote> quote(long company, String state, String city, BigDecimal subtotal) {
-        List<ShippingRates.Rate> rates = shippingRates.rates(company);
-        if (rates.stream().noneMatch(ShippingRates.Rate::active)) {
-            return java.util.Optional.of(new ShippingRates.Quote(shipping, null, null, null, false));
+    /**
+     * Cotiza con el tarifario de logística. Si la empresa aún no tiene tarifario, rige el valor fijo de la
+     * configuración ({@code essenza.storefront.shipping-amount}); con tarifario, lista vacía = sin cobertura.
+     */
+    List<ShippingOptionDto> shippingOptions(long company, Long countryId, Long stateId, Long cityId, String label, List<CartLine> lines) {
+        if (countryId == null || stateId == null || cityId == null) {
+            throw new OrderRuleViolation("Elige el departamento y la ciudad de entrega.");
         }
-        return ShippingRates.match(rates, state, city).map(rate -> ShippingRates.quote(rate, subtotal));
+        if (!shippingQuotes.hasTariff(company)) {
+            return List.of(new ShippingOptionDto(0L, null, null, shipping, shipping.signum() == 0, null, null, null));
+        }
+        BigDecimal subtotal = estimate(company, lines);
+        ShippingQuotes.QuoteResult result = shippingQuotes.quote(company, new ShippingQuotes.QuoteRequest(null, countryId, stateId,
+                cityId, label, lines.stream().map(l -> new ShippingQuotes.Item(l.skuId(), null, l.quantity())).toList(), subtotal,
+                subtotal, null, null));
+        return result.options().stream().map(o -> new ShippingOptionDto(o.rateCardId(), o.carrierId(), o.carrierName(), o.total(), o.free(),
+                o.minDays(), o.maxDays(), o.deliveryTo())).toList();
+    }
+
+    private static String label(String city, String state) {
+        String c = city == null ? "" : city.trim();
+        String s = state == null ? "" : state.trim();
+        String joined = c.isEmpty() ? s : s.isEmpty() ? c : c + ", " + s;
+        return joined.isEmpty() ? null : joined.substring(0, Math.min(joined.length(), 250));
     }
 
     /** Subtotal de referencia con los precios vigentes (solo para decidir el envío gratis). */
@@ -277,15 +308,26 @@ public class StorefrontService {
         List<CartLine> lines = StorefrontRules.cart(request.lines() == null ? null : request.lines().stream()
                 .map(l -> l == null ? null : new CartLine(l.skuId(), l.offerId(), l.quantity() == null ? 0 : l.quantity())).toList());
         Long method = gateway(request.paymentMethodId());
-        ShippingRates.Quote shippingQuote = quote(company, address.state(), address.city(), estimate(company, lines))
-                .orElseThrow(() -> new OrderRuleViolation("Por ahora no hacemos envíos a " + address.city() + "."));
+        var delivery = request.delivery();
+        List<ShippingOptionDto> options = shippingOptions(company, delivery.countryId(), delivery.stateId(), delivery.cityId(),
+                label(address.city(), address.state()), lines);
+        if (options.isEmpty()) {
+            throw new OrderRuleViolation("Por ahora no hacemos envíos a " + address.city() + ".");
+        }
+        // Se vuelve a cotizar aquí: el valor del envío nunca sale del navegador, solo la opción elegida.
+        ShippingOptionDto shippingOption = request.shippingOptionId() == null ? options.get(0) : options.stream()
+                .filter(o -> o.id().equals(request.shippingOptionId())).findFirst()
+                .orElseThrow(() -> new ConflictException("La opción de envío elegida ya no está disponible. Revisa el envío e inténtalo de nuevo."));
+        Long carrierId = shippingOption.carrierId();
 
         SaveOrderDetailsDto details = new SaveOrderDetailsDto(
                 new SaveOrderDetailsDto.Customer(null, "NIT".equals(buyer.docType()) ? "COMPANY" : "PERSON", buyer.docType(),
                         buyer.docNumber(), buyer.name(), buyer.email(), buyer.phone(), address.address(), address.city()),
                 new SaveOrderDetailsDto.Delivery("SHIPPING", null, address.recipientName(), address.phone(), address.address(),
-                        address.addressDetail(), null, null, null, "Colombia", address.state(), address.city(), null, address.notes(),
-                        null, shippingQuote.amount(), null),
+                        address.addressDetail(), delivery.countryId(), delivery.stateId(), delivery.cityId(),
+                        delivery.country() == null || delivery.country().isBlank() ? "Colombia" : delivery.country().trim(),
+                        address.state(), address.city(), null, address.notes(), carrierId, shippingOption.amount(),
+                        shippingOption.deliveryTo()),
                 null, "ONLINE", null, null, null, null, null, "Compra en la tienda en línea.", address.notes(), ACTOR_NAME);
         CreatePurchaseRequest create = new CreatePurchaseRequest(details,
                 lines.stream().map(l -> new CreatePurchaseRequest.Line(l.skuId(), l.offerId(), l.quantity())).toList());

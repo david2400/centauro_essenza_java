@@ -17,7 +17,6 @@ import com.essenza.draco.modules.shipping_logistics.product_distribution.applica
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.delivery_estimate.DeleteDeliveryEstimateUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.delivery_estimate.FindDeliveryEstimateByIdUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.delivery_estimate.FindDeliveryEstimatesUseCase;
-import com.essenza.draco.modules.shipping_logistics.product_distribution.application.input.delivery_estimate.CalculateDeliveryEstimateUseCase;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.delivery_estimate.DeliveryEstimateDto;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.delivery_estimate.CreateDeliveryEstimateDto;
 import com.essenza.draco.modules.shipping_logistics.product_distribution.application.dto.delivery_estimate.UpdateDeliveryEstimateDto;
@@ -37,20 +36,17 @@ public class DeliveryEstimateController {
     private final DeleteDeliveryEstimateUseCase deleteDeliveryEstimate;
     private final FindDeliveryEstimateByIdUseCase findDeliveryEstimateById;
     private final FindDeliveryEstimatesUseCase findDeliveryEstimates;
-    private final CalculateDeliveryEstimateUseCase calculateDeliveryEstimate;
 
     public DeliveryEstimateController(CreateDeliveryEstimateUseCase createDeliveryEstimate,
                                      UpdateDeliveryEstimateUseCase updateDeliveryEstimate,
                                      DeleteDeliveryEstimateUseCase deleteDeliveryEstimate,
                                      FindDeliveryEstimateByIdUseCase findDeliveryEstimateById,
-                                     FindDeliveryEstimatesUseCase findDeliveryEstimates,
-                                     CalculateDeliveryEstimateUseCase calculateDeliveryEstimate) {
+                                     FindDeliveryEstimatesUseCase findDeliveryEstimates) {
         this.createDeliveryEstimate = createDeliveryEstimate;
         this.updateDeliveryEstimate = updateDeliveryEstimate;
         this.deleteDeliveryEstimate = deleteDeliveryEstimate;
         this.findDeliveryEstimateById = findDeliveryEstimateById;
         this.findDeliveryEstimates = findDeliveryEstimates;
-        this.calculateDeliveryEstimate = calculateDeliveryEstimate;
     }
 
     @Operation(summary = "Create delivery estimate", description = "Creates a new delivery estimate and returns it with its generated ID")
@@ -117,24 +113,5 @@ public class DeliveryEstimateController {
     public ResponseEntity<Void> delete(@Parameter(description = "Delivery estimate ID", required = true) @PathVariable Long id) {
         boolean deleted = deleteDeliveryEstimate.deleteById(id);
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-    }
-
-    @Operation(summary = "Calculate delivery estimate", description = "Calculates delivery estimate automatically based on carrier, addresses and shipment date")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Delivery estimate calculated",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DeliveryEstimateDto.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Carrier not found", content = @Content)
-    })
-    @PostMapping("/calculate")
-    public ResponseEntity<DeliveryEstimateDto> calculate(
-            @Parameter(description = "Carrier ID", required = true) @RequestParam Long carrierId,
-            @Parameter(description = "Origin address", required = true) @RequestParam String originAddress,
-            @Parameter(description = "Destination address", required = true) @RequestParam String destinationAddress,
-            @Parameter(description = "Shipment date and time", required = true) @RequestParam LocalDateTime shipmentDate,
-            @Parameter(description = "Calculate only business days") @RequestParam(required = false, defaultValue = "true") Boolean isBusinessDaysOnly) {
-        
-        DeliveryEstimateDto calculated = calculateDeliveryEstimate.calculateEstimate(carrierId, originAddress, destinationAddress, shipmentDate, isBusinessDaysOnly);
-        return ResponseEntity.ok(calculated);
     }
 }

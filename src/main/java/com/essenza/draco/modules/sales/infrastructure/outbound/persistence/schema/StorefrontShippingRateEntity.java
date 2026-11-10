@@ -11,9 +11,9 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 
 /**
- * Tabla {@code storefront_shipping_rates}: tarifa de envío de la tienda en línea por departamento y ciudad
- * ({@code state_key}/{@code city_key} normalizados; vacío = cualquiera). Solo define el esquema; la escribe
- * {@code ShippingRateJdbcStore}.
+ * Tabla {@code storefront_shipping_rates}: HISTÓRICO, ya no se usa. Eran las tarifas de la tienda en línea por
+ * nombre de departamento y ciudad; desde el tarifario de logística (zonas y peso, con ids del catálogo) la tienda
+ * cotiza con {@code ShippingQuotes}. Se conserva para no perder datos: se puede borrar cuando ya no haga falta.
  */
 @Getter
 @Entity

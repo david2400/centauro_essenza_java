@@ -23,6 +23,7 @@ import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ProductCardDto;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ProductDetailDto;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingQuoteDto;
+import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.ShippingRequest;
 import com.essenza.draco.modules.sales.application.dto.storefront.StorefrontDtos.StoreInfoDto;
 import com.essenza.draco.modules.sales.application.services.storefront.StorefrontService;
 
@@ -76,13 +77,11 @@ public class StorefrontController {
         return cached(store.product(slug));
     }
 
-    @Operation(summary = "Shipping quote", description = "Costo de envío para un departamento y ciudad y un subtotal "
-            + "(available=false: no se envía a ese lugar).")
-    @GetMapping("/shipping")
-    public ResponseEntity<ShippingQuoteDto> shipping(@RequestParam(value = "state", required = false) String state,
-                                                     @RequestParam(value = "city", required = false) String city,
-                                                     @RequestParam(value = "subtotal", required = false) java.math.BigDecimal subtotal) {
-        return cached(store.shipping(state, city, subtotal));
+    @Operation(summary = "Shipping quote", description = "Opciones de envío para el destino (ids del catálogo de parametros) y el "
+            + "carrito, con el tarifario de logística (available=false: no se envía a ese lugar).")
+    @PostMapping("/shipping")
+    public ResponseEntity<ShippingQuoteDto> shipping(@RequestBody ShippingRequest request, HttpServletRequest http) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(store.shipping(request, client(http)));
     }
 
     @Operation(summary = "Checkout", description = "Compra de invitado: crea la compra y el link de pago. Responde el secreto del "

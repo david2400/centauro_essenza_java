@@ -48,6 +48,16 @@ public class BillingSettingsEntity extends AuditInfo {
     @Column(name = "department", length = 120)
     private String department;
 
+    /** Ubicación en el catálogo del servicio parametros (city y department guardan los nombres). */
+    @Column(name = "country_id")
+    private Long countryId;
+
+    @Column(name = "state_id")
+    private Long stateId;
+
+    @Column(name = "city_id")
+    private Long cityId;
+
     @Column(name = "email", length = 160)
     private String email;
 

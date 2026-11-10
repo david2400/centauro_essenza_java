@@ -17,18 +17,21 @@ public final class StorefrontDtos {
                                BigDecimal shippingAmount) {
     }
 
-    /** {@code available} false = no se envía a ese lugar. {@code free}: el subtotal alcanzó el envío gratis. */
-    public record ShippingQuoteDto(boolean available, BigDecimal amount, BigDecimal freeFrom, Integer minDays, Integer maxDays,
-                                   boolean free) {
+    /**
+     * Opción de envío para el comprador (sale del tarifario de logística). {@code id} se devuelve en el checkout para
+     * elegirla; 0 = valor fijo de la tienda (sin tarifario configurado). {@code amount} ya incluye seguro; 0 si
+     * {@code free}.
+     */
+    public record ShippingOptionDto(Long id, Long carrierId, String carrier, BigDecimal amount, boolean free, Integer minDays, Integer maxDays,
+                                    java.time.LocalDate deliveryTo) {
     }
 
-    /** Tarifa del panel. Departamento y ciudad vacíos = tarifa general. */
-    public record ShippingRateDto(Long id, String state, String city, BigDecimal amount, BigDecimal freeFrom, Integer minDays,
-                                  Integer maxDays, boolean active, String updatedByName, Instant updatedAt) {
+    /** {@code available} false = no se envía a ese lugar. Opciones ordenadas por valor y plazo. */
+    public record ShippingQuoteDto(boolean available, List<ShippingOptionDto> options) {
     }
 
-    public record SaveShippingRateRequest(String state, String city, BigDecimal amount, BigDecimal freeFrom, Integer minDays,
-                                          Integer maxDays, Boolean active) {
+    /** Destino (ids del catálogo de parametros) y carrito, para cotizar con su peso real. */
+    public record ShippingRequest(Long countryId, Long stateId, Long cityId, String city, String state, List<LineInput> lines) {
     }
 
     public record CategoryDto(Long id, String name, String slug, int products) {
@@ -57,15 +60,17 @@ public final class StorefrontDtos {
     public record BuyerInput(String name, String docType, String docNumber, String email, String phone) {
     }
 
+    /** Ubicación con los ids del catálogo de parametros (para cotizar) y sus nombres (para la guía y la factura). */
     public record AddressInput(String recipientName, String phone, String address, String addressDetail, String city, String state,
-                               String notes) {
+                               String notes, Long countryId, Long stateId, Long cityId, String country) {
     }
 
     public record LineInput(Long skuId, Long offerId, Integer quantity) {
     }
 
+    /** {@code shippingOptionId}: opción elegida de la cotización (vacío = la más económica). */
     public record CheckoutRequest(BuyerInput buyer, AddressInput delivery, List<LineInput> lines, Long paymentMethodId,
-                                  Boolean acceptTerms) {
+                                  Boolean acceptTerms, Long shippingOptionId) {
     }
 
     /** {@code token}: secreto del enlace de seguimiento (solo se entrega aquí); {@code checkoutUrl}: pago en la pasarela. */

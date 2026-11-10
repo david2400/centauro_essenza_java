@@ -14,8 +14,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules;
-import com.essenza.draco.modules.sales.domain.model.storefront.ShippingRates;
-import com.essenza.draco.modules.sales.infrastructure.outbound.repositories.storefront.ShippingRateJdbcStore;
 import com.essenza.draco.modules.sales.infrastructure.outbound.repositories.storefront.StorefrontJdbcAdapter;
 
 /**
@@ -166,30 +164,9 @@ class StorefrontReadIT {
     }
 
     @Test
-    void pricesAndShippingRatesByCompany() {
+    void pricesByCompany() {
         assertThat(store.ownPrices(List.of(11L, 41L))).containsOnlyKeys(11L); // 41 es de un producto en borrador
         assertThat(store.offerPrices(COMPANY, "COP", List.of(90L, 93L))).containsOnlyKeys(90L); // 93 es de otra empresa
 
-        ShippingRateJdbcStore rates = new ShippingRateJdbcStore(jdbc);
-        Instant now = Instant.parse("2026-11-09T15:00:00Z");
-        var medellin = ShippingRates.check("Antioquia", "Medellín", new BigDecimal("6000"), new BigDecimal("200000"), 1, 2, true);
-        long id = rates.insert(COMPANY, medellin, "u-1", "Ana", now);
-        rates.insert(6, ShippingRates.check(null, null, new BigDecimal("9000"), null, null, null, true), "u-9", "Otra", now);
-        assertThat(rates.exists(COMPANY, "antioquia", "medellin", null)).isTrue();
-        assertThat(rates.exists(COMPANY, "antioquia", "medellin", id)).isFalse();
-        assertThat(rates.rates(COMPANY)).singleElement().satisfies(r -> {
-            assertThat(r.city()).isEqualTo("Medellín");
-            assertThat(r.freeFrom()).isEqualByComparingTo("200000");
-            assertThat(r.minDays()).isEqualTo(1);
-        });
-        rates.update(COMPANY, id, ShippingRates.check("Antioquia", "Medellín", new BigDecimal("7000"), null, null, null, false), "u-1",
-                "Ana", now);
-        assertThat(rates.rate(COMPANY, id)).hasValueSatisfying(r -> {
-            assertThat(r.amount()).isEqualByComparingTo("7000");
-            assertThat(r.active()).isFalse();
-            assertThat(r.freeFrom()).isNull();
-        });
-        assertThat(rates.rate(6, id)).isEmpty();
-        assertThat(rates.audits(COMPANY).get(id).updatedByName()).isEqualTo("Ana");
     }
 }

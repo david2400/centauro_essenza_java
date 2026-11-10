@@ -4,11 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/** Datos del emisor y parámetros de facturación electrónica (una sola fila). */
+/**
+ * Datos del emisor y parámetros de facturación electrónica (una sola fila).
+ * {@code countryId/stateId/cityId} apuntan al catálogo del servicio parametros; {@code city} y {@code department}
+ * guardan los nombres para la representación gráfica (la factura no consulta parametros).
+ */
 public record BillingSettings(String nit, String legalName, String tradeName, String taxRegime, String responsibilities,
                               String address, String city, String department, String email, String phone,
                               BillingEnvironment environment, String provider, String softwareId, String softwarePin,
-                              boolean autoInvoice, String invoiceFooter) {
+                              boolean autoInvoice, String invoiceFooter, Long countryId, Long stateId, Long cityId) {
 
     public static final Set<String> REGIMES = Set.of("RESPONSABLE_IVA", "NO_RESPONSABLE_IVA");
 
@@ -37,6 +41,12 @@ public record BillingSettings(String nit, String legalName, String tradeName, St
         softwareId = blankToNull(softwareId);
         softwarePin = blankToNull(softwarePin);
         invoiceFooter = blankToNull(invoiceFooter);
+        if (stateId != null && countryId == null) {
+            throw new BillingRuleViolation("Elige el país del departamento.");
+        }
+        if (cityId != null && stateId == null) {
+            throw new BillingRuleViolation("Elige el departamento de la ciudad.");
+        }
     }
 
     public String dv() {
