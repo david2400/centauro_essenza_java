@@ -86,4 +86,5 @@ public class ProductSkuEntity extends AuditInfo {
     @Version
     @Column(nullable = false)
     private Long version;
+
 }

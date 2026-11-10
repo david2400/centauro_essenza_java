@@ -8,12 +8,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.Index;
 
 /** V13: persona de contacto del proveedor (se reemplazan todas al guardar la ficha). */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "supplier_contacts")
+@Table(name = "supplier_contacts",
+        indexes = {
+                @Index(name = "ix_supplier_contacts_supplier", columnList = "supplier_id")})
 public class SupplierContactEntity {
 
     @Id
@@ -44,4 +47,5 @@ public class SupplierContactEntity {
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;
+
 }

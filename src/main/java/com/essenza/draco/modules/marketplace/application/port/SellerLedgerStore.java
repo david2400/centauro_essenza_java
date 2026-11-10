@@ -17,6 +17,12 @@ public interface SellerLedgerStore {
     /** Saldo (cargos − abonos) por vendedor de la empresa. */
     Map<Long, BigDecimal> balances(long companyId);
 
+    /**
+     * Lo que le queda abonado al vendedor por lo que la tienda cobró de la orden: ventas
+     * (MARKETPLACE_SALE / CONSIGNMENT_SALE) menos cancelaciones, devoluciones y reembolsos.
+     */
+    BigDecimal netSaleCredits(long companyId, long orderId);
+
     /** Vendedores externos no cerrados de la empresa (para generar mensualidades). */
     List<Long> billableSellers(long companyId);
 

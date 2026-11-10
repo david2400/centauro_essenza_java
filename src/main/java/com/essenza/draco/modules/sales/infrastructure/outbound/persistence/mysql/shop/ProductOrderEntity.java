@@ -8,13 +8,18 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.util.List;
+import jakarta.persistence.Index;
+import jakarta.persistence.Column;
 
 @SuperBuilder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "product_orders")
+@Table(name = "product_orders",
+        indexes = {
+                @Index(name = "idx_product_orders_sku", columnList = "sku_id"),
+                @Index(name = "ix_product_orders_offer", columnList = "offer_id")})
 public class ProductOrderEntity extends AuditInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -98,4 +103,7 @@ public class ProductOrderEntity extends AuditInfo {
 
     // Sin asociación JPA hacia detalle de despacho (módulo shipping_logistics): se referencia solo por id (Fase 1, fronteras entre módulos).
 
+    /** La escribe JDBC (solo lectura para JPA). */
+    @Column(name = "offer_id", columnDefinition = "bigint", insertable = false, updatable = false)
+    private Long offerId;
 }

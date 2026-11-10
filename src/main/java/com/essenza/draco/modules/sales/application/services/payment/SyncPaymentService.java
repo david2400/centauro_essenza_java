@@ -18,9 +18,21 @@ import com.essenza.draco.modules.sales.domain.model.payment.PaymentRuleViolation
 public class SyncPaymentService implements SyncPaymentUseCase {
 
     private final PaymentSoporte soporte;
+    private final CheckoutGroupSoporte checkoutGroups;
 
     @Override
     public PaymentDto sync(Long id) {
+        // Pago de un link de compra: la pasarela conoce la referencia del grupo y su estado vale para todos.
+        var group = checkoutGroups.store().byPayment(id);
+        if (group.isPresent()) {
+            Payment first = soporte.locked(group.get().paymentIds().get(0));
+            if (first.getProvider() != null) {
+                soporte.gateway(first.getProvider()).fetchStatus(group.get().reference(), first.getProviderReference())
+                        .ifPresent(status -> checkoutGroups.apply(group.get(), status.status(), status.providerReference(),
+                                status.amount(), status.detail(), first.getProvider().name(), null, null));
+            }
+            return soporte.toDto(soporte.locked(id));
+        }
         Payment payment = soporte.locked(id);
         if (payment.getProvider() == null) {
             throw new PaymentRuleViolation("Solo los pagos en línea se consultan en la pasarela.");

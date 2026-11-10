@@ -13,12 +13,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.essenza.draco.modules.sales.application.dto.payment.PurchaseCheckoutDto;
+import com.essenza.draco.modules.sales.application.dto.payment.StartPurchaseCheckoutDto;
 import com.essenza.draco.modules.sales.application.dto.purchase.PurchaseDtos.CreatePurchaseRequest;
 import com.essenza.draco.modules.sales.application.dto.purchase.PurchaseDtos.OrderPurchaseDto;
 import com.essenza.draco.modules.sales.application.dto.purchase.PurchaseDtos.PurchaseDetailDto;
 import com.essenza.draco.modules.sales.application.dto.purchase.PurchaseDtos.PurchaseSummaryDto;
 import com.essenza.draco.modules.sales.application.dto.purchase.PurchaseDtos.SkuOptionsDto;
 import com.essenza.draco.modules.sales.application.output.repository.PurchaseLedger.PurchaseFilter;
+import com.essenza.draco.modules.sales.application.services.payment.StartPurchaseCheckoutService;
 import com.essenza.draco.modules.sales.application.services.purchase.PurchaseService;
 import com.essenza.draco.shared.common.domain.dto.PageResponse;
 import com.essenza.draco.shared.common.web.PageableFactory;
@@ -37,9 +40,11 @@ public class PurchaseController {
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.desc("createdAt"));
 
     private final PurchaseService purchases;
+    private final StartPurchaseCheckoutService checkout;
 
-    public PurchaseController(PurchaseService purchases) {
+    public PurchaseController(PurchaseService purchases, StartPurchaseCheckoutService checkout) {
         this.purchases = purchases;
+        this.checkout = checkout;
     }
 
     @Operation(summary = "Search", description = "Paginado. q: número, cliente, documento o correo; status: PENDING, "
@@ -67,6 +72,14 @@ public class PurchaseController {
     @PostMapping
     public ResponseEntity<PurchaseDetailDto> create(@Valid @RequestBody CreatePurchaseRequest input) {
         return ResponseEntity.status(HttpStatus.CREATED).body(purchases.create(input));
+    }
+
+    @Operation(summary = "Checkout", description = "Un solo link de pago en línea por el saldo de todos los subpedidos "
+            + "(también los de vendedores externos: los cobra la tienda y les liquida). Crea un pago pendiente por subpedido; "
+            + "la aprobación de la pasarela los aprueba a todos. VENTAS.GESTIONAR.")
+    @PostMapping("/{id}/checkout")
+    public ResponseEntity<PurchaseCheckoutDto> checkout(@PathVariable long id, @Valid @RequestBody StartPurchaseCheckoutDto input) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(checkout.start(id, input));
     }
 
     @Operation(summary = "Sku options", description = "Quién vende el SKU: tienda propia y ofertas activas. VENTAS.GESTIONAR.")

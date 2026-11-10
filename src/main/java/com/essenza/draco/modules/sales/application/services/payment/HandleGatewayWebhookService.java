@@ -33,6 +33,7 @@ public class HandleGatewayWebhookService implements HandleGatewayWebhookUseCase 
     private final PaymentGateways gateways;
     private final PaymentEventLog events;
     private final PaymentSoporte soporte;
+    private final CheckoutGroupSoporte checkoutGroups;
 
     @Override
     public boolean handle(String provider, Map<String, String> headers, Map<String, String> query, String body) {
@@ -56,6 +57,15 @@ public class HandleGatewayWebhookService implements HandleGatewayWebhookUseCase 
         }
         Optional<Payment> payment = event.paymentReference() == null ? Optional.empty()
                 : payments.lockByPaymentReference(event.paymentReference());
+        if (payment.isEmpty() && event.paymentReference() != null) {
+            // Link de pago de una compra multivendedor: la referencia es la del grupo.
+            Optional<com.essenza.draco.modules.sales.application.output.repository.CheckoutGroupStore.Group> group =
+                    checkoutGroups.store().byReference(event.paymentReference());
+            if (group.isPresent()) {
+                return checkoutGroups.apply(group.get(), event.status(), event.providerReference(), event.amount(), event.detail(),
+                        source, event.eventKey(), truncate(body));
+            }
+        }
         if (payment.isEmpty() && event.providerReference() != null) {
             payment = payments.lockByProvider(source, event.providerReference());
         }
@@ -66,6 +76,12 @@ public class HandleGatewayWebhookService implements HandleGatewayWebhookUseCase 
             soporte.log(null, source, null, "UNMATCHED", null, event.amount(),
                     "Referencia " + event.paymentReference() + " · " + event.eventKey(), truncate(body));
             return false;
+        }
+        Optional<com.essenza.draco.modules.sales.application.output.repository.CheckoutGroupStore.Group> group =
+                payment.get().getId() == null ? Optional.empty() : checkoutGroups.store().byPayment(payment.get().getId());
+        if (group.isPresent()) {
+            return checkoutGroups.apply(group.get(), event.status(), event.providerReference(), event.amount(), event.detail(),
+                    source, event.eventKey(), truncate(body));
         }
         return soporte.applyGatewayStatus(payment.get(), event.status(), event.providerReference(), event.amount(),
                 event.detail(), source, event.eventKey(), truncate(body));

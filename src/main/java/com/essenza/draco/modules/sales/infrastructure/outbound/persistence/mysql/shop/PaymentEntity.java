@@ -17,6 +17,9 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 /** Pago de una orden (V8). */
 @SuperBuilder
@@ -25,7 +28,19 @@ import com.essenza.draco.shared.common.domain.entity.AuditInfo;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "payments")
+@Table(name = "payments",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_payments_payment_reference", columnNames = {"payment_reference"})},
+        indexes = {
+                @Index(name = "idx_payments_order", columnList = "order_id, status"),
+                @Index(name = "idx_payments_type", columnList = "payment_type_id"),
+                @Index(name = "idx_payments_status_created", columnList = "status, created_at"),
+                @Index(name = "idx_payments_provider_ref", columnList = "provider, provider_reference"),
+                @Index(name = "idx_payments_cash_session", columnList = "cash_session_id, status")},
+        check = {
+                @CheckConstraint(name = "ck_payments_amount", constraint = "amount > 0"),
+                @CheckConstraint(name = "ck_payments_refunded", constraint = "refunded_amount >= 0 AND refunded_amount <= amount"),
+                @CheckConstraint(name = "ck_payments_status", constraint = "status IN ('PENDING', 'APPROVED', 'DECLINED', 'EXPIRED', 'VOIDED', 'REFUNDED')")})
 public class PaymentEntity extends AuditInfo {
 
     @Id
@@ -105,4 +120,5 @@ public class PaymentEntity extends AuditInfo {
     @Version
     @Column(name = "version", nullable = false)
     private Long version;
+
 }

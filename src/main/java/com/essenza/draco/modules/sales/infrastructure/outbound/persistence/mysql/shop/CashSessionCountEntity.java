@@ -10,12 +10,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.UniqueConstraint;
 
 /** Arqueo congelado por medio de pago al cerrar el turno. */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "cash_session_counts")
+@Table(name = "cash_session_counts",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_cash_session_counts", columnNames = {"cash_session_id", "payment_method_id"})})
 public class CashSessionCountEntity {
 
     @Id
@@ -46,4 +49,5 @@ public class CashSessionCountEntity {
 
     @Column(name = "difference", nullable = false, precision = 15, scale = 2)
     private BigDecimal difference = BigDecimal.ZERO;
+
 }

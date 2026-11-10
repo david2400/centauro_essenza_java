@@ -27,7 +27,8 @@ import com.essenza.draco.modules.sales.domain.model.payment.PaymentStatus;
  *   <li>Integridad: SHA256(referencia + monto_en_centavos + moneda [+ expiración] + secreto_integridad).</li>
  *   <li>Eventos: SHA256(valores de signature.properties + timestamp + secreto_eventos) =
  *       signature.checksum (también en el header X-Event-Checksum).</li>
- *   <li>Llaves pub_test_/prv_test_ usan el API de sandbox; pub_prod_ el de producción.</li>
+ *   <li>Llaves pub_test_/prv_test_ usan el API de sandbox; pub_prod_ el de producción, y solo se aceptan con
+ *       {@code essenza.payments.wompi.allow-production=true} (WOMPI_ALLOW_PRODUCTION).</li>
  * </ul>
  */
 @Component
@@ -52,7 +53,8 @@ public class WompiGateway implements PaymentGateway {
     @Override
     public boolean configured() {
         return !settings.getWompiPublicKey().isEmpty() && !settings.getWompiIntegritySecret().isEmpty()
-                && !settings.getWompiEventsSecret().isEmpty();
+                && !settings.getWompiEventsSecret().isEmpty()
+                && (!"production".equals(environment()) || settings.isWompiAllowProduction());
     }
 
     @Override

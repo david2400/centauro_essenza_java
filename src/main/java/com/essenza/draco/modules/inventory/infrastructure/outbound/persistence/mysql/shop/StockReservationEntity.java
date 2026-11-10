@@ -15,13 +15,23 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 /** Reserva de stock por línea de orden y bodega (tabla {@code stock_reservations}, V6). */
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "stock_reservations")
+@Table(name = "stock_reservations",
+        indexes = {
+                @Index(name = "idx_reservations_order", columnList = "order_id"),
+                @Index(name = "idx_reservations_line", columnList = "order_line_id"),
+                @Index(name = "idx_reservations_status", columnList = "status, expires_at"),
+                @Index(name = "idx_reservations_stock", columnList = "sku_id, warehouse_id")},
+        check = {
+                @CheckConstraint(name = "ck_reservations_quantity", constraint = "quantity >= 0"),
+                @CheckConstraint(name = "ck_reservations_status", constraint = "status IN ('ACTIVE', 'COMMITTED', 'RELEASED', 'EXPIRED', 'RETURNED')")})
 public class StockReservationEntity {
 
     @Id
@@ -64,4 +74,5 @@ public class StockReservationEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
 }

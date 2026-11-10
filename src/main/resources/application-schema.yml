@@ -1,0 +1,19 @@
+# Perfil para generar el script del esquema desde las entidades, sin tocar la base:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=schema
+# Escribe target/schema-create.sql; cuando aparezca, detén la aplicación. Revísalo y aplícalo en producción
+# (que corre con ddl-auto=validate). Se conecta a la base configurada solo para leer su versión.
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      jakarta.persistence.schema-generation.database.action: none
+      jakarta.persistence.schema-generation.scripts.action: create
+      jakarta.persistence.schema-generation.scripts.create-target: target/schema-create.sql
+      hibernate.hbm2ddl.delimiter: ";"
+      hibernate.format_sql: true
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: false

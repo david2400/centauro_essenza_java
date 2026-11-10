@@ -10,12 +10,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.Index;
 
 /** Línea de factura (inmutable; sin auditoría ni borrado lógico). */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "invoice_lines")
+@Table(name = "invoice_lines",
+        indexes = {
+                @Index(name = "idx_invoice_lines_invoice", columnList = "invoice_id, position")})
 public class InvoiceLineEntity {
 
     @Id
@@ -64,4 +67,5 @@ public class InvoiceLineEntity {
 
     @Column(name = "total", nullable = false, precision = 15, scale = 2)
     private BigDecimal total;
+
 }

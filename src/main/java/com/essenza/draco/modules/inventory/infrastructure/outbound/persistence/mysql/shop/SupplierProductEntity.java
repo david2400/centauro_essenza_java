@@ -13,12 +13,18 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
 
 /** V13: SKU que surte un proveedor. */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "supplier_products")
+@Table(name = "supplier_products",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_supplier_products_sku", columnNames = {"supplier_id", "sku_id"})},
+        indexes = {
+                @Index(name = "ix_supplier_products_sku", columnList = "sku_id")})
 public class SupplierProductEntity {
 
     @Id
@@ -60,4 +66,5 @@ public class SupplierProductEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
 }

@@ -12,13 +12,24 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 /** Proveedor. V13: ficha empresarial (fiscal, ubicación, estado, condiciones y banco). */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "suppliers")
+@Table(name = "suppliers",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_suppliers_code_active", columnNames = {"code_active"}),
+                @UniqueConstraint(name = "uk_suppliers_document_active", columnNames = {"document_active"})},
+        indexes = {
+                @Index(name = "ix_suppliers_status", columnList = "status")},
+        check = {
+                @CheckConstraint(name = "ck_suppliers_status", constraint = "status IN ('ACTIVE', 'BLOCKED', 'INACTIVE')"),
+                @CheckConstraint(name = "ck_suppliers_person", constraint = "person_type IN ('NATURAL', 'JURIDICA')")})
 public class SupplierEntity extends AuditInfo {
 
     @Id
@@ -123,4 +134,12 @@ public class SupplierEntity extends AuditInfo {
 
     @Column(name = "notes", length = 1000)
     private String notes;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(30) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "document_active", columnDefinition = "varchar(31) generated always as (if(deleted = 0 and doc_number is not null, concat(doc_type, ':', doc_number), null)) stored", insertable = false, updatable = false)
+    private String documentActive;
 }

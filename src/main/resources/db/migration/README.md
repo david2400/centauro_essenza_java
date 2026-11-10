@@ -1,5 +1,7 @@
 # Migraciones de base de datos (Flyway)
 
+> **Historial.** Flyway está apagado: el esquema ahora lo crea JPA (ver `../README.md`). Estos archivos ya no se ejecutan.
+
 - **V1** es la *línea base*: el esquema que ya existía cuando se activó Flyway
   (lo creó Hibernate con `ddl-auto=update`). No hay archivo V1: Flyway la marca
   con `baseline-on-migrate=true` y `baseline-version=1`.

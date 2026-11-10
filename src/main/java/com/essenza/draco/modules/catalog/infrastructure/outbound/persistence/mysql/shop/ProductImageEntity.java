@@ -42,4 +42,5 @@ public class ProductImageEntity extends AuditInfo {
 
     @Column(name = "alt_text")
     private String altText;
+
 }

@@ -28,6 +28,6 @@ public class FindOrderPaymentsService implements FindOrderPaymentsUseCase {
         OrderPaymentStatus.Balance balance = OrderPaymentStatus.of(order.total(), order.returned(), list);
         return new OrderPaymentsDto(order.id(), order.state().name(), balance.total(), balance.settled(),
                 balance.pending(), balance.balance(), balance.collectable(), balance.status().name(), soporte.toDtos(list),
-                order.returned());
+                order.returned(), soporte.sellerCollects(order.id()));
     }
 }

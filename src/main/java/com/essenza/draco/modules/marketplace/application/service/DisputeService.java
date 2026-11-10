@@ -54,14 +54,23 @@ public class DisputeService {
     private final ActorProvider actors;
     private final Clock clock;
     private final int responseDays;
+    private final SellerProceedsService proceeds;
 
+    /** Para pruebas sin reversa de lo cobrado por la tienda. */
     public DisputeService(DisputeStore store, SellerLedgerStore ledger, ActorProvider actors, Clock marketplaceClock,
-                          @Value("${essenza.marketplace.disputes.response-days:3}") int responseDays) {
+                          int responseDays) {
+        this(store, ledger, actors, marketplaceClock, responseDays, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DisputeService(DisputeStore store, SellerLedgerStore ledger, ActorProvider actors, Clock marketplaceClock,
+                          @Value("${essenza.marketplace.disputes.response-days:3}") int responseDays, SellerProceedsService proceeds) {
         this.store = store;
         this.ledger = ledger;
         this.actors = actors;
         this.clock = marketplaceClock;
         this.responseDays = responseDays;
+        this.proceeds = proceeds;
     }
 
     public DisputeDetailDto open(OpenDisputeRequest request) {
@@ -129,6 +138,11 @@ public class DisputeService {
             ledger.post(actor.companyId(), new SellerLedgerStore.NewEntry(row.summary().sellerId(), "DISPUTE_CHARGE", charge, "COP",
                     today, today, BigDecimal.ZERO, row.summary().number(), null, null, "DSP:" + id, note), actor.userId(),
                     actor.displayName(), now);
+        }
+        if (proceeds != null && resolution == Resolution.REFUND && amount != null && amount.signum() > 0) {
+            // Si la tienda cobró la orden, el reembolso al comprador sale de lo que se le abonó al vendedor.
+            proceeds.refund(actor.companyId(), row.summary().sellerId(), row.summary().orderId(), row.summary().number(),
+                    "DSP-REFUND:" + id, amount, note, actor.userId(), actor.displayName());
         }
         store.addEvent(id, "RESOLVE", status.name(), next.name(), resolution.name() + " · " + note, actor.userId(),
                 actor.displayName(), now);

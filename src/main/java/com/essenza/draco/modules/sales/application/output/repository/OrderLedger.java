@@ -129,6 +129,15 @@ public interface OrderLedger {
         return false;
     }
 
+    /**
+     * La tienda cobra el subpedido (en línea o en caja) y luego le liquida al vendedor. Siempre en
+     * consignación; para los demás subpedidos externos, según {@code essenza.marketplace.collection}
+     * (STORE, por defecto, o SELLER: el comprador le paga al vendedor por fuera).
+     */
+    default boolean storeCollects(Long orderId) {
+        return consignmentSale(orderId);
+    }
+
     /** Vacío si la orden no pertenece a una compra multivendedor. */
     Optional<MarketplaceLink> marketplaceLink(Long orderId);
 }

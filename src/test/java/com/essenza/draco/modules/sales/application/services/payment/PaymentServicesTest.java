@@ -33,7 +33,11 @@ import com.essenza.draco.modules.sales.application.input.order.ChangeOrderStatus
 import com.essenza.draco.modules.sales.application.input.order.FindOrderByIdUseCase;
 import com.essenza.draco.modules.sales.application.output.gateway.PaymentGateway;
 import com.essenza.draco.modules.sales.application.output.gateway.PaymentGateways;
+import com.essenza.draco.modules.sales.application.dto.payment.StartPurchaseCheckoutDto;
+import com.essenza.draco.modules.sales.application.output.repository.CheckoutGroupStore;
 import com.essenza.draco.modules.sales.application.output.repository.OrderLedger;
+import com.essenza.draco.modules.sales.application.output.repository.PurchaseLedger;
+import com.essenza.draco.shared.security.RequestActor;
 import com.essenza.draco.modules.sales.application.output.repository.PaymentEventLog;
 import com.essenza.draco.modules.sales.application.output.repository.PaymentMethodRepository;
 import com.essenza.draco.modules.sales.application.output.repository.PaymentRepository;
@@ -57,11 +61,14 @@ class PaymentServicesTest {
     @Mock OrderLedger ledger;
     @Mock FindOrderByIdUseCase findOrder;
     @Mock ChangeOrderStatusUseCase changeStatus;
+    @Mock CheckoutGroupStore groups;
+    @Mock PurchaseLedger purchaseLedger;
 
     PaymentSoporte soporte;
     RegisterPaymentService register;
     StartCheckoutService checkout;
     HandleGatewayWebhookService webhook;
+    CheckoutGroupSoporte checkoutGroups;
 
     final List<Payment> stored = new ArrayList<>();
     String orderState = "PENDING";
@@ -81,7 +88,8 @@ class PaymentServicesTest {
         register = new RegisterPaymentService(payments, soporte,
                 org.mockito.Mockito.mock(com.essenza.draco.modules.sales.application.output.repository.CashSessionRepository.class));
         checkout = new StartCheckoutService(payments, gateways, soporte);
-        webhook = new HandleGatewayWebhookService(payments, gateways, events, soporte);
+        checkoutGroups = new CheckoutGroupSoporte(groups, payments, soporte);
+        webhook = new HandleGatewayWebhookService(payments, gateways, events, soporte, checkoutGroups);
         when(ledger.lockOrder(anyLong())).thenReturn(Optional.of(new OrderLedger.OrderHeader(10L, "PENDING", true, Instant.now())));
         when(ledger.lines(10L)).thenReturn(List.of(new OrderLedger.OrderLine(1L, 10L, 1L, 1L, "SKU", "P", BigDecimal.TEN, 1,
                 BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.TEN)));
@@ -214,5 +222,77 @@ class PaymentServicesTest {
         assertThat(webhook.handle("sandbox", Map.of(), Map.of(), "{}")).isTrue();
         assertThat(old.getStatus()).isEqualTo(PaymentStatus.APPROVED);
         assertThat(second.payment().status()).isEqualTo("PENDING");
+    }
+
+    // ── Compra multivendedor: un link para todos los subpedidos ──────────────────────────
+
+    /** Dos subpedidos (10 propio, 20 de vendedor externo) de la compra 7; la tienda cobra ambos. */
+    StartPurchaseCheckoutService purchaseCheckout(boolean storeCollects) {
+        when(findOrder.findById(20L)).thenAnswer(inv -> Optional.of(OrderDto.builder().id(20L).state("PENDING")
+                .total(new BigDecimal("50000")).build()));
+        when(ledger.lines(20L)).thenReturn(List.of(new OrderLedger.OrderLine(2L, 20L, 1L, 1L, "SKU", "P", BigDecimal.TEN, 1,
+                BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.TEN)));
+        when(payments.findByOrderId(20L)).thenAnswer(inv -> stored.stream().filter(p -> p.getOrderId() == 20L).toList());
+        when(payments.findByOrderId(10L)).thenAnswer(inv -> stored.stream().filter(p -> p.getOrderId() == 10L).toList());
+        when(ledger.marketplaceLink(20L)).thenReturn(Optional.of(new OrderLedger.MarketplaceLink(7L, 3L, true)));
+        when(ledger.storeCollects(20L)).thenReturn(storeCollects);
+        when(purchaseLedger.find(2L, 7L)).thenReturn(Optional.of(new PurchaseLedger.PurchaseRow(7L, "CMP-000007", "ONLINE", "COP",
+                "Ana", null, null, "ana@x.co", null, null, new BigDecimal("150000"), 2, "u", "u", Instant.now())));
+        when(purchaseLedger.subOrders(7L)).thenReturn(List.of(
+                new PurchaseLedger.SubOrderRow(20L, "ORD-20", "PENDING", new BigDecimal("50000"), 3L, "Cuero", "EXTERNAL", 1, 1, null),
+                new PurchaseLedger.SubOrderRow(10L, "ORD-10", "PENDING", new BigDecimal("100000"), null, null, "OWN", 1, 1, null),
+                new PurchaseLedger.SubOrderRow(30L, "ORD-30", "CANCELLED", new BigDecimal("9000"), null, null, "OWN", 1, 1, null)));
+        when(payments.lockById(anyLong())).thenAnswer(inv -> stored.stream().filter(p -> p.getId().equals(inv.getArgument(0))).findFirst());
+        RequestActor actor = new RequestActor(2L, "u-1", "Caja", java.util.Set.of("VENTAS.GESTIONAR"));
+        return new StartPurchaseCheckoutService(() -> actor, purchaseLedger, payments, gateways, soporte, groups);
+    }
+
+    @Test
+    void unSoloLinkPorLaCompraYLaAprobacionPagaTodosLosSubpedidos() {
+        when(sandbox.createCheckout(any())).thenReturn(new PaymentGateway.CheckoutSession("https://pay/c", null));
+        var result = purchaseCheckout(true).start(7L, new StartPurchaseCheckoutDto(4L, null, null));
+        assertThat(result.amount()).isEqualByComparingTo("150000");
+        assertThat(result.reference()).startsWith("PUR-7-");
+        assertThat(result.payments()).extracting(p -> p.orderId()).containsExactly(10L, 20L); // orden fijo; sin el cancelado
+        ArgumentCaptor<PaymentGateway.CheckoutRequest> request = ArgumentCaptor.forClass(PaymentGateway.CheckoutRequest.class);
+        verify(sandbox).createCheckout(request.capture());
+        assertThat(request.getValue().paymentReference()).isEqualTo(result.reference());
+        assertThat(request.getValue().amount()).isEqualByComparingTo("150000");
+        assertThat(request.getValue().payerEmail()).isEqualTo("ana@x.co");
+        ArgumentCaptor<List<Long>> ids = ArgumentCaptor.forClass(List.class);
+        verify(groups).create(eq(result.reference()), eq(2L), eq(7L), eq("SANDBOX"), any(), ids.capture(), eq("u-1"), any());
+
+        // Webhook con la referencia del grupo: aprueba los dos pagos y marca pagadas las dos órdenes.
+        var group = new CheckoutGroupStore.Group(result.reference(), 2L, 7L, "SANDBOX", new BigDecimal("150000"), ids.getValue());
+        when(groups.byReference(result.reference())).thenReturn(Optional.of(group));
+        when(sandbox.parseWebhook(any(), any(), any())).thenReturn(new PaymentGateway.WebhookEvent("TXG:APPROVED", result.reference(),
+                "TXG", PaymentStatus.APPROVED, new BigDecimal("150000"), "ok", false));
+        assertThat(webhook.handle("sandbox", Map.of(), Map.of(), "{}")).isTrue();
+        assertThat(stored).extracting(Payment::getStatus).containsOnly(PaymentStatus.APPROVED);
+        verify(changeStatus).changeStatus(eq(10L), any());
+        verify(changeStatus).changeStatus(eq(20L), any());
+        verify(events).record(org.mockito.ArgumentMatchers.argThat(e -> "TXG:APPROVED".equals(e.eventKey())));
+    }
+
+    @Test
+    void grupoConMontoDistintoNoApruebaNinguno() {
+        when(sandbox.createCheckout(any())).thenReturn(new PaymentGateway.CheckoutSession("https://pay/c", null));
+        var result = purchaseCheckout(true).start(7L, new StartPurchaseCheckoutDto(4L, null, null));
+        var group = new CheckoutGroupStore.Group(result.reference(), 2L, 7L, "SANDBOX", new BigDecimal("150000"),
+                stored.stream().map(Payment::getId).sorted().toList());
+        when(groups.byReference(result.reference())).thenReturn(Optional.of(group));
+        when(sandbox.parseWebhook(any(), any(), any())).thenReturn(new PaymentGateway.WebhookEvent("TXH:APPROVED", result.reference(),
+                "TXH", PaymentStatus.APPROVED, new BigDecimal("100000"), "ok", false));
+        assertThat(webhook.handle("sandbox", Map.of(), Map.of(), "{}")).isFalse();
+        assertThat(stored).extracting(Payment::getStatus).containsOnly(PaymentStatus.PENDING);
+        assertThat(stored).allSatisfy(p -> assertThat(p.getStatusDetail()).contains("distinto al de la compra"));
+        verify(changeStatus, never()).changeStatus(anyLong(), any());
+    }
+
+    @Test
+    void siCobraElVendedorLaCompraNoSeCobraEnLinea() {
+        assertThatThrownBy(() -> purchaseCheckout(false).start(7L, new StartPurchaseCheckoutDto(4L, null, null)))
+                .isInstanceOf(PaymentRuleViolation.class).hasMessageContaining("vendedor externo");
+        verify(sandbox, never()).createCheckout(any());
     }
 }

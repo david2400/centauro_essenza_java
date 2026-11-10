@@ -13,6 +13,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
 
 /** Bitácora de pagos y de webhooks (V8). Sin borrado lógico: es un registro histórico. */
 @Builder
@@ -20,7 +22,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "payment_events")
+@Table(name = "payment_events",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_payment_events_key", columnNames = {"source", "event_key"})},
+        indexes = {
+                @Index(name = "idx_payment_events_payment", columnList = "payment_id, created_at")})
 public class PaymentEventEntity {
 
     @Id
@@ -57,4 +63,5 @@ public class PaymentEventEntity {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
 }

@@ -15,6 +15,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import jakarta.persistence.CheckConstraint;
 
 /** Existencias por SKU y bodega (Fase 3). Fuente de verdad del stock. */
 @SuperBuilder
@@ -28,7 +29,9 @@ import lombok.experimental.SuperBuilder;
         indexes = {
                 @Index(name = "idx_stock_items_product", columnList = "product_id"),
                 @Index(name = "idx_stock_items_warehouse", columnList = "warehouse_id")
-        })
+        },
+        check = {
+                @CheckConstraint(name = "ck_stock_items_quantities", constraint = "on_hand >= 0 AND reserved >= 0 AND reserved <= on_hand")})
 public class StockItemEntity extends AuditInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -57,4 +60,5 @@ public class StockItemEntity extends AuditInfo {
     @Version
     @Column(nullable = false)
     private Long version;
+
 }

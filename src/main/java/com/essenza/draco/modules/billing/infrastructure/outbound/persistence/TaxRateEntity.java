@@ -13,12 +13,19 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.CheckConstraint;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "tax_rates")
+@Table(name = "tax_rates",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_tax_rates_code_active", columnNames = {"code_active"})},
+        check = {
+                @CheckConstraint(name = "ck_tax_rates_rate", constraint = "rate >= 0 AND rate <= 100"),
+                @CheckConstraint(name = "ck_tax_rates_kind", constraint = "kind IN ('IVA', 'INC', 'EXCLUDED')")})
 public class TaxRateEntity extends AuditInfo {
 
     @Id
@@ -49,4 +56,8 @@ public class TaxRateEntity extends AuditInfo {
 
     @Column(name = "position", nullable = false)
     private Integer position = 0;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(30) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
 }

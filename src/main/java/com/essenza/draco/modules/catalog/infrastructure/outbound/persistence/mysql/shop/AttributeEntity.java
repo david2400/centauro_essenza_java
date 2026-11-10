@@ -18,6 +18,8 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.CheckConstraint;
 
 /**
  * Atributo del catálogo (tabla {@code attributes}, V5). El código es único entre
@@ -27,7 +29,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "attributes")
+@Table(name = "attributes",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_attributes_code_active", columnNames = {"code_active"}),
+                @UniqueConstraint(name = "uk_attributes_legacy_feature", columnNames = {"legacy_feature_id"})},
+        check = {
+                @CheckConstraint(name = "ck_attributes_data_type", constraint = "data_type IN ('TEXT', 'NUMBER', 'BOOLEAN', 'OPTION')")})
 public class AttributeEntity extends AuditInfo {
 
     @Id
@@ -60,4 +67,8 @@ public class AttributeEntity extends AuditInfo {
     @OneToMany(mappedBy = "attribute", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC, id ASC")
     private List<AttributeOptionEntity> options = new ArrayList<>();
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(60) generated always as (if(deleted = 0, code, null)) virtual", insertable = false, updatable = false)
+    private String codeActive;
 }

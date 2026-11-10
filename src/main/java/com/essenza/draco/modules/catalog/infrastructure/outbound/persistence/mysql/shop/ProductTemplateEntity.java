@@ -18,13 +18,17 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.UniqueConstraint;
 
 /** Plantilla de producto (tabla {@code product_templates}, V5; antes {@code type_products}). */
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "product_templates")
+@Table(name = "product_templates",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_product_templates_name_active", columnNames = {"name_active"}),
+                @UniqueConstraint(name = "uk_product_templates_legacy", columnNames = {"legacy_type_product_id"})})
 public class ProductTemplateEntity extends AuditInfo {
 
     @Id
@@ -45,4 +49,12 @@ public class ProductTemplateEntity extends AuditInfo {
     @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<TemplateAttributeEntity> attributes = new ArrayList<>();
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "name_active", columnDefinition = "varchar(120) generated always as (if(deleted = 0, name, null)) virtual", insertable = false, updatable = false)
+    private String nameActive;
+
+    /** La escribe JDBC (solo lectura para JPA). */
+    @Column(name = "legacy_type_product_id", columnDefinition = "bigint", insertable = false, updatable = false)
+    private Long legacyTypeProductId;
 }

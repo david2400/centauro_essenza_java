@@ -54,6 +54,22 @@ public class SellerLedgerJdbcStore implements SellerLedgerStore {
     }
 
     @Override
+    public BigDecimal netSaleCredits(long companyId, long orderId) {
+        BigDecimal value = jdbc.queryForObject("""
+                SELECT COALESCE(SUM(-g.amount), 0) FROM mp_seller_ledger g
+                WHERE g.company_id = :company AND (
+                  EXISTS (SELECT 1 FROM product_orders l WHERE l.order_id = :order AND g.idempotency_key IN (
+                            CONCAT('MP-SALE:', l.id_product_order), CONCAT('CSG-SALE:', l.id_product_order),
+                            CONCAT('MP-CANCEL:', l.id_product_order), CONCAT('CSG-CANCEL:', l.id_product_order)))
+                  OR EXISTS (SELECT 1 FROM product_orders l WHERE l.order_id = :order
+                             AND g.idempotency_key LIKE CONCAT('CSG-RETURN:%:', l.id_product_order))
+                  OR EXISTS (SELECT 1 FROM mp_disputes d WHERE d.order_id = :order AND d.company_id = :company
+                             AND g.idempotency_key = CONCAT('DSP-REFUND:', d.id)))""",
+                new MapSqlParameterSource("company", companyId).addValue("order", orderId), BigDecimal.class);
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    @Override
     public List<LedgerRow> entries(long companyId, long sellerId) {
         return jdbc.query("""
                 SELECT * FROM mp_seller_ledger WHERE company_id = :company AND seller_id = :seller

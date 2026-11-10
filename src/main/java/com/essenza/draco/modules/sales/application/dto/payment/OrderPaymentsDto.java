@@ -16,5 +16,14 @@ public record OrderPaymentsDto(
         @Schema(description = "Lo que se puede cobrar ahora (saldo menos lo pendiente)") BigDecimal collectable,
         @Schema(description = "UNPAID, PARTIAL, PAID, OVERPAID") String paymentStatus,
         List<PaymentDto> payments,
-        @Schema(description = "Valor acreditado por devoluciones (ya descontado de order_total)") BigDecimal returnedAmount) {
+        @Schema(description = "Valor acreditado por devoluciones (ya descontado de order_total)") BigDecimal returnedAmount,
+        @Schema(description = "Subpedido de vendedor externo que cobra el vendedor por fuera: aquí no se cobra en línea ni en caja")
+        boolean sellerCollects) {
+
+    public OrderPaymentsDto(Long orderId, String orderState, BigDecimal orderTotal, BigDecimal paidAmount, BigDecimal pendingAmount,
+                            BigDecimal balance, BigDecimal collectable, String paymentStatus, List<PaymentDto> payments,
+                            BigDecimal returnedAmount) {
+        this(orderId, orderState, orderTotal, paidAmount, pendingAmount, balance, collectable, paymentStatus, payments, returnedAmount,
+                false);
+    }
 }

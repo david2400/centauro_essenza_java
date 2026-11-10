@@ -33,6 +33,16 @@ class GatewaySignaturesTest {
     }
 
     @Test
+    void lasLlavesDeProduccionDeWompiNoSeUsanSinPermisoExplicito() {
+        PaymentsSettings prod = settings("pub_prod_x", "prod_integrity_x", "prod_events_x", "", "");
+        WompiGateway wompi = new WompiGateway(prod, new GatewayHttp());
+        assertThat(wompi.configured()).isFalse();
+        prod.setWompiAllowProduction(true);
+        assertThat(wompi.configured()).isTrue();
+        assertThat(new WompiGateway(settings("pub_test_x", "i", "e", "", ""), new GatewayHttp()).configured()).isTrue();
+    }
+
+    @Test
     void elCheckoutDeWompiLlevaMontoEnCentavosYFirma() {
         WompiGateway wompi = new WompiGateway(settings("pub_test_abc", "test_integrity_s", "test_events_s", "", ""), new GatewayHttp());
         var session = wompi.createCheckout(new PaymentGateway.CheckoutRequest(7L, "PAY-7-AAAA2222", new BigDecimal("95000"), "COP",

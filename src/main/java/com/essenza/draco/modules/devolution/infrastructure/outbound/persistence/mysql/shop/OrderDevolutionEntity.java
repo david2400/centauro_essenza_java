@@ -10,13 +10,16 @@ import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import jakarta.persistence.Index;
 
 @SuperBuilder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "order_devolutions")
+@Table(name = "order_devolutions",
+        indexes = {
+                @Index(name = "ix_order_devolutions_order", columnList = "order_id, state")})
 public class OrderDevolutionEntity extends AuditInfo {
 
     private final String orderDevolution = "orderDevolution";

@@ -24,6 +24,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import com.essenza.draco.modules.marketplace.application.service.OfferStockService;
+import com.essenza.draco.modules.marketplace.application.service.SellerProceedsService;
+import com.essenza.draco.modules.marketplace.infrastructure.outbound.jdbc.ConsignmentJdbcStore;
+import com.essenza.draco.modules.marketplace.infrastructure.outbound.jdbc.SellerLedgerJdbcStore;
 import com.essenza.draco.modules.marketplace.infrastructure.outbound.jdbc.OfferSaleJdbcStore;
 import com.essenza.draco.modules.sales.application.output.repository.PurchaseLedger;
 import com.essenza.draco.modules.sales.application.output.repository.PurchaseLedger.NewPurchase;
@@ -62,7 +65,7 @@ class PurchaseFlowIT {
         assertThat(url).as("solo bases de prueba (*_test)").matches("jdbc:.*_test(\\?.*)?");
         jdbc = new NamedParameterJdbcTemplate(new DriverManagerDataSource(url, System.getenv("MARKETPLACE_IT_DB_USER"),
                 System.getenv().getOrDefault("MARKETPLACE_IT_DB_PASSWORD", "")));
-        for (String t : List.of("mp_seller_ledger", "mp_commission_adjustments", "mp_commissions", "mp_offer_reservations", "product_orders", "orders", "purchases", "mp_offer_events",
+        for (String t : List.of("mp_dispute_events", "mp_disputes", "mp_seller_ledger", "mp_commission_adjustments", "mp_commissions", "mp_offer_reservations", "product_orders", "orders", "purchases", "mp_offer_events",
                 "mp_offers", "mp_plan_assignments", "mp_plan_events", "mp_seller_events", "mp_seller_documents",
                 "mp_seller_contacts", "mp_sellers", "mp_plans")) {
             jdbc.update("DELETE FROM " + t, new MapSqlParameterSource());
@@ -255,5 +258,83 @@ class PurchaseFlowIT {
         assertThat(purchases.search(COMPANY, new PurchaseFilter(row.number().toLowerCase(), null), PageableFactory.of(0, 10,
                 null, Set.of(), Sort.by(Sort.Order.desc("createdAt")))).getContent()).extracting(PurchaseRow::id)
                 .containsExactly(purchase);
+    }
+
+    static List<String> ledger(long seller) {
+        return jdbc.queryForList("SELECT CONCAT(entry_type, ' ', CAST(amount AS DECIMAL(15,2))) FROM mp_seller_ledger WHERE seller_id = :s ORDER BY id",
+                new MapSqlParameterSource("s", seller), String.class);
+    }
+
+    @Test @Order(5)
+    void storeCollectsAndCreditsTheSeller() {
+        Clock clock = Clock.fixed(Instant.parse("2026-11-07T15:00:00Z"), ZoneId.of("America/Bogota"));
+        SellerLedgerJdbcStore ledgerStore = new SellerLedgerJdbcStore(jdbc);
+        SellerProceedsService proceeds = new SellerProceedsService(new ConsignmentJdbcStore(jdbc), ledgerStore, clock, "STORE");
+        OfferStockService collecting = new OfferStockService(new OfferSaleJdbcStore(jdbc), clock, null, proceeds);
+        long seller = seller(COMPANY, "EXTERNAL", "Cuero Fino", "APPROVED");
+        long sellerOffer = offer(COMPANY, seller, 101, "95000", 5, "ACTIVE");
+
+        long purchase = newPurchase(COMPANY);
+        long order = order(purchase, seller, "PENDING", "190000");
+        long line = line(order, 2);
+        jdbc.update("UPDATE product_orders SET total = 190000, offer_id = :o WHERE id_product_order = :l",
+                new MapSqlParameterSource("o", sellerOffer).addValue("l", line));
+        collecting.reserveLine(COMPANY, sellerOffer, order, line, 2);
+        collecting.commitOrder(order);
+        collecting.commitOrder(order); // repetible: un solo abono
+        assertThat(ledger(seller)).containsExactly("MARKETPLACE_SALE -190000.00");
+        assertThat(ledgerStore.netSaleCredits(COMPANY, order)).isEqualByComparingTo("190000");
+
+        // Reembolso por reclamo: nunca más de lo que le queda abonado por la orden; repetir la clave no duplica.
+        long d1 = dispute(order, seller);
+        long d2 = dispute(order, seller);
+        assertThat(proceeds.refund(COMPANY, seller, order, "ORD", "DSP-REFUND:" + d1, new BigDecimal("50000"), null, "u-1", "demo"))
+                .isEqualByComparingTo("50000");
+        assertThat(proceeds.refund(COMPANY, seller, order, "ORD", "DSP-REFUND:" + d1, new BigDecimal("50000"), null, "u-1", "demo"))
+                .isZero();
+        assertThat(ledgerStore.netSaleCredits(COMPANY, order)).isEqualByComparingTo("140000");
+        assertThat(proceeds.refund(COMPANY, seller, order, "ORD", "DSP-REFUND:" + d2, new BigDecimal("900000"), null, "u-1", "demo"))
+                .isEqualByComparingTo("140000");
+        long unpaid = order(purchase, seller, "PENDING", "1000");
+        assertThat(proceeds.refund(COMPANY, seller, unpaid, "X", "DSP-REFUND:" + dispute(unpaid, seller), BigDecimal.TEN, null,
+                "u-1", "demo")).isZero(); // orden que la tienda no cobró
+
+        // Cancelar lo pagado reversa solo lo que quede abonado (aquí ya nada).
+        collecting.restockOrder(order);
+        assertThat(ledger(seller)).containsExactly("MARKETPLACE_SALE -190000.00", "MARKETPLACE_REVERSAL 50000.00",
+                "MARKETPLACE_REVERSAL 140000.00");
+        assertThat(ledgerStore.netSaleCredits(COMPANY, order)).isZero();
+
+        // Otra venta cancelada sin reclamo: reversa completa, una vez.
+        long second = order(purchase, seller, "PENDING", "95000");
+        long secondLine = line(second, 1);
+        jdbc.update("UPDATE product_orders SET total = 95000, offer_id = :o WHERE id_product_order = :l",
+                new MapSqlParameterSource("o", sellerOffer).addValue("l", secondLine));
+        collecting.reserveLine(COMPANY, sellerOffer, second, secondLine, 1);
+        collecting.commitOrder(second);
+        collecting.restockOrder(second);
+        collecting.restockOrder(second);
+        assertThat(ledger(seller)).hasSize(5).endsWith("MARKETPLACE_SALE -95000.00", "MARKETPLACE_REVERSAL 95000.00");
+
+        // Si los cobra el vendedor (SELLER), no se abona nada.
+        OfferStockService sellerCollects = new OfferStockService(new OfferSaleJdbcStore(jdbc), clock, null,
+                new SellerProceedsService(new ConsignmentJdbcStore(jdbc), ledgerStore, clock, "SELLER"));
+        long other = order(purchase, seller, "PENDING", "95000");
+        long otherLine = line(other, 1);
+        jdbc.update("UPDATE product_orders SET total = 95000, offer_id = :o WHERE id_product_order = :l",
+                new MapSqlParameterSource("o", sellerOffer).addValue("l", otherLine));
+        sellerCollects.reserveLine(COMPANY, sellerOffer, other, otherLine, 1);
+        sellerCollects.commitOrder(other);
+        assertThat(ledger(seller)).hasSize(5);
+        jdbc.update("DELETE FROM mp_disputes WHERE seller_id = :s", new MapSqlParameterSource("s", seller));
+    }
+
+    static long dispute(long order, long seller) {
+        jdbc.update("""
+                INSERT INTO mp_disputes (company_id, order_id, seller_id, reason, description, status, respond_by, created_by,
+                  created_at, updated_at)
+                VALUES (:c, :o, :s, 'NOT_RECEIVED', 'it', 'RESOLVED_BUYER', '2026-11-10', 'it', NOW(6), NOW(6))""",
+                new MapSqlParameterSource("c", COMPANY).addValue("o", order).addValue("s", seller));
+        return jdbc.queryForObject("SELECT MAX(id) FROM mp_disputes", new MapSqlParameterSource(), Long.class);
     }
 }

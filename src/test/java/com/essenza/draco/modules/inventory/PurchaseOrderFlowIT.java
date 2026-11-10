@@ -37,8 +37,8 @@ import com.essenza.draco.modules.inventory.application.output.repository.Invento
 import com.essenza.draco.modules.inventory.application.output.repository.StockItemRepository;
 import com.essenza.draco.modules.inventory.application.services.purchase.PurchaseOrderService;
 import com.essenza.draco.modules.inventory.application.services.purchase.PurchaseStockEntryService;
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
-import com.essenza.draco.modules.inventory.domain.dto.StockItemDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.StockItemDto;
 import com.essenza.draco.modules.inventory.domain.model.StockItem;
 import com.essenza.draco.modules.inventory.domain.model.purchase.PurchaseOrderRules.PurchaseRuleViolation;
 import com.essenza.draco.modules.inventory.infrastructure.outbound.purchase.PurchaseOrderJdbcStore;

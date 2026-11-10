@@ -11,13 +11,16 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
 
 /** V11: punto de venta (tienda o sede). */
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "stores")
+@Table(name = "stores",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_stores_code_active", columnNames = {"code_active"})})
 public class StoreEntity extends AuditInfo {
 
     @Id
@@ -67,4 +70,8 @@ public class StoreEntity extends AuditInfo {
 
     @Column(name = "active", nullable = false)
     private Boolean active = true;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(30) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
 }

@@ -27,6 +27,12 @@ public class PaymentsSettings {
     private final String wompiEventsSecret;
     private final String wompiApiUrl;
     private final String wompiCheckoutUrl;
+    /**
+     * Llaves de producción (pub_prod_) solo si se habilita explícitamente: evita cobros reales por
+     * configurar por error las llaves de producción en un ambiente de pruebas.
+     */
+    @Value("${essenza.payments.wompi.allow-production:false}")
+    private boolean wompiAllowProduction;
 
     private final String mercadoPagoAccessToken;
     private final String mercadoPagoWebhookSecret;
@@ -61,7 +67,12 @@ public class PaymentsSettings {
         this.mercadoPagoApiUrl = stripSlash(mercadoPagoApiUrl);
     }
 
-    private static String trim(String value) {
+    /** Para pruebas (en la app la fija {@code essenza.payments.wompi.allow-production}). */
+    void setWompiAllowProduction(boolean allow) {
+        this.wompiAllowProduction = allow;
+    }
+
+        private static String trim(String value) {
         return value == null ? "" : value.trim();
     }
 

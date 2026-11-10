@@ -4,6 +4,10 @@ import com.essenza.draco.shared.common.domain.entity.AuditInfo;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
+import jakarta.persistence.Column;
 
 @SuperBuilder
 @Data
@@ -11,7 +15,13 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "warehouses")
+@Table(name = "warehouses",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_warehouses_code_active", columnNames = {"code_active"})},
+        indexes = {
+                @Index(name = "ix_warehouses_type", columnList = "warehouse_type")},
+        check = {
+                @CheckConstraint(name = "ck_warehouses_type", constraint = "warehouse_type IN ('ALMACEN', 'TIENDA', 'TRANSITO', 'DEVOLUCIONES', 'CONSIGNACION')")})
 public class WarehouseEntity extends AuditInfo {
 
     @Id
@@ -96,4 +106,8 @@ public class WarehouseEntity extends AuditInfo {
     /** Nombre de la ciudad del catálogo de parametros (para listados). */
     @Column(name = "city", length = 80)
     private String city;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(50) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
 }

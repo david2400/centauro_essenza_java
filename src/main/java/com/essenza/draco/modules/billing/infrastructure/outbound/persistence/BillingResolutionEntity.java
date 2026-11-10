@@ -14,12 +14,20 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "billing_resolutions")
+@Table(name = "billing_resolutions",
+        indexes = {
+                @Index(name = "idx_billing_resolutions_kind", columnList = "kind, environment, active")},
+        check = {
+                @CheckConstraint(name = "ck_billing_resolutions_kind", constraint = "kind IN ('INVOICE', 'CREDIT_NOTE')"),
+                @CheckConstraint(name = "ck_billing_resolutions_range", constraint = "from_number >= 0 AND to_number >= from_number"
+                        + " AND next_number >= from_number AND next_number <= to_number + 1")})
 public class BillingResolutionEntity extends AuditInfo {
 
     @Id

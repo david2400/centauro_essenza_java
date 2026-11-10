@@ -8,14 +8,37 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.util.List;
-
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ForeignKey;
+import com.essenza.draco.modules.sales.infrastructure.outbound.persistence.schema.PurchaseEntity;
+import jakarta.persistence.Column;
 
 @SuperBuilder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "orders")
+@Table(name = "orders",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_orders_number", columnNames = {"order_number"})},
+        indexes = {
+                @Index(name = "idx_orders_cash_session", columnList = "cash_session_id"),
+                @Index(name = "ix_orders_customer_doc", columnList = "customer_doc_number"),
+                @Index(name = "ix_orders_state_created", columnList = "state, created_at"),
+                @Index(name = "ix_orders_store", columnList = "store_id"),
+                @Index(name = "ix_orders_promised", columnList = "promised_date"),
+                @Index(name = "ix_orders_purchase", columnList = "purchase_id"),
+                @Index(name = "ix_orders_seller", columnList = "seller_id"),
+                @Index(name = "ix_orders_state_ship_by", columnList = "state, ship_by")},
+        check = {
+                @CheckConstraint(name = "ck_orders_delivery_method", constraint = "delivery_method IN ('SHIPPING', 'PICKUP')"),
+                @CheckConstraint(name = "ck_orders_priority", constraint = "priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT')"),
+                @CheckConstraint(name = "ck_orders_discount_type", constraint = "discount_type IN ('NONE', 'PERCENT', 'AMOUNT', 'COUPON')")})
 public class OrderEntity extends AuditInfo {
 
     @Id
@@ -251,4 +274,14 @@ public class OrderEntity extends AuditInfo {
 
     // Sin asociación JPA hacia despachos (módulo shipping_logistics): se referencia solo por id (Fase 1, fronteras entre módulos).
 
+    /** La escribe JDBC (solo lectura para JPA). */
+    @Column(name = "ship_by", columnDefinition = "date", insertable = false, updatable = false)
+    private java.time.LocalDate shipBy;
+
+    /** Solo para la llave foránea fk_orders_purchase (Hibernate la crea); no se usa en consultas. */
+    @lombok.ToString.Exclude
+    @lombok.EqualsAndHashCode.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchase_id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "fk_orders_purchase"))
+    private PurchaseEntity fkPurchaseId;
 }

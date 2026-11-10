@@ -7,7 +7,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
@@ -15,21 +14,26 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.Index;
+import jakarta.persistence.ForeignKey;
 
 /** Atributo de una plantilla (tabla {@code template_attributes}, V5). */
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "template_attributes")
+@Table(name = "template_attributes",
+        indexes = {
+                @Index(name = "idx_template_attributes_attribute", columnList = "attribute_id")})
 public class TemplateAttributeEntity {
 
     @EmbeddedId
     private Key id = new Key();
 
     @MapsId("templateId")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "template_id")
+    // EAGER: Hibernate no admite LAZY hacia una entidad con @SoftDelete.
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "template_id", foreignKey = @ForeignKey(name = "fk_template_attributes_template"))
     private ProductTemplateEntity template;
 
     @Column(nullable = false)
@@ -78,4 +82,5 @@ public class TemplateAttributeEntity {
             return Objects.hash(templateId, attributeId);
         }
     }
+
 }

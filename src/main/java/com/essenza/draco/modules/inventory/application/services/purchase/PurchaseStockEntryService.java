@@ -17,7 +17,7 @@ import com.essenza.draco.modules.inventory.application.output.repository.LegacyS
 import com.essenza.draco.modules.inventory.application.output.repository.PurchaseStockEntry;
 import com.essenza.draco.modules.inventory.application.output.repository.SkuCostStore;
 import com.essenza.draco.modules.inventory.application.output.repository.StockItemRepository;
-import com.essenza.draco.modules.inventory.domain.dto.InventoryMovementDto;
+import com.essenza.draco.modules.inventory.application.dto.InventoryMovementDto;
 import com.essenza.draco.modules.inventory.domain.model.StockItem;
 import com.essenza.draco.modules.inventory.domain.model.purchase.MovingAverageCost;
 

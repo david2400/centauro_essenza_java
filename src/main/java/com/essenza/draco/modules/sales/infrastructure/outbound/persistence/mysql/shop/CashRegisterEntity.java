@@ -19,12 +19,19 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.CheckConstraint;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "cash_registers")
+@Table(name = "cash_registers",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_cash_registers_code_active", columnNames = {"code_active"})},
+        check = {
+                @CheckConstraint(name = "ck_cash_registers_opening", constraint = "opening_mode IN ('FREE', 'SUGGESTED', 'FIXED')"),
+                @CheckConstraint(name = "ck_cash_registers_receipt", constraint = "receipt_width IN ('58MM', '80MM')")})
 public class CashRegisterEntity extends AuditInfo {
 
     @Id
@@ -83,4 +90,9 @@ public class CashRegisterEntity extends AuditInfo {
     @CollectionTable(name = "cash_register_methods", joinColumns = @JoinColumn(name = "cash_register_id"))
     @Column(name = "payment_method_id")
     private Set<Long> allowedMethodIds = new LinkedHashSet<>();
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(30) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
+
 }

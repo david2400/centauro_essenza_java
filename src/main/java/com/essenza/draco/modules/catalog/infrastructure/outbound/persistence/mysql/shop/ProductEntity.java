@@ -1,6 +1,5 @@
 package com.essenza.draco.modules.catalog.infrastructure.outbound.persistence.mysql.shop;
 
-
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,6 +8,11 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import java.math.BigDecimal;
 import java.util.List;
+import jakarta.persistence.Index;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Column;
 
 @SuperBuilder
 @Data
@@ -16,7 +20,9 @@ import java.util.List;
 @NoArgsConstructor
 @Entity
 @Table(name = "products",
-        uniqueConstraints = @UniqueConstraint(name = "uk_products_slug", columnNames = "slug"))
+        uniqueConstraints = @UniqueConstraint(name = "uk_products_slug", columnNames = "slug"),
+        indexes = {
+                @Index(name = "idx_products_template", columnList = "template_id")})
 public class ProductEntity extends AuditInfo {
 
     @Id
@@ -112,5 +118,9 @@ public class ProductEntity extends AuditInfo {
 
     @OneToMany(mappedBy = "combo", fetch = FetchType.LAZY)
     private List<ProductComboEntity> productCombos;
+
+    /** La escribe JDBC (solo lectura para JPA). */
+    @Column(name = "template_id", columnDefinition = "bigint", insertable = false, updatable = false)
+    private Long templateId;
 
 }

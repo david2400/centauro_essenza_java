@@ -85,18 +85,22 @@ class PaymentSoporte {
     }
 
     /**
-     * Marketplace (V19): el comprador le paga directamente al vendedor externo. Mientras el
-     * vendedor no tenga su cuenta conectada a la pasarela, aquí no se cobra en línea ni en caja:
-     * solo se registra el pago que el vendedor confirme.
+     * Marketplace: la tienda cobra los subpedidos de vendedores externos (V28) y les liquida desde
+     * su estado de cuenta. Con {@code essenza.marketplace.collection=SELLER} el comprador le paga al
+     * vendedor por fuera y aquí solo se registra el pago que el vendedor confirme (salvo consignación).
      */
     void rejectThirdPartyCollection(Long orderId, String how) {
-        // Consignación: la mercancía la guarda y despacha la tienda, así que la tienda cobra y liquida al vendedor.
-        if (ledger.marketplaceLink(orderId).map(OrderLedger.MarketplaceLink::thirdParty).orElse(false)
-                && !ledger.consignmentSale(orderId)) {
+        if (sellerCollects(orderId)) {
             throw new PaymentRuleViolation("La orden " + orderId + " es el subpedido de un vendedor externo: el comprador "
                     + "le paga directamente al vendedor y la tienda no lo cobra " + how + ". Registra el pago cuando el "
                     + "vendedor lo confirme.");
         }
+    }
+
+    /** Subpedido de vendedor externo que el comprador le paga al vendedor por fuera (no lo cobra la tienda). */
+    boolean sellerCollects(Long orderId) {
+        return ledger.marketplaceLink(orderId).map(OrderLedger.MarketplaceLink::thirdParty).orElse(false)
+                && !ledger.storeCollects(orderId);
     }
 
     PaymentMethod method(Long methodId) {

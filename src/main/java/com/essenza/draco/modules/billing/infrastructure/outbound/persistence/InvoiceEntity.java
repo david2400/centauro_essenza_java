@@ -15,12 +15,25 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "invoices")
+@Table(name = "invoices",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_invoices_number", columnNames = {"kind", "prefix", "number"}),
+                @UniqueConstraint(name = "uk_invoices_active_order", columnNames = {"active_order_invoice"}),
+                @UniqueConstraint(name = "uk_invoices_devolution", columnNames = {"devolution_id"})},
+        indexes = {
+                @Index(name = "idx_invoices_order", columnList = "order_id"),
+                @Index(name = "idx_invoices_status_issued", columnList = "status, issued_at")},
+        check = {
+                @CheckConstraint(name = "ck_invoices_kind", constraint = "kind IN ('INVOICE', 'CREDIT_NOTE')"),
+                @CheckConstraint(name = "ck_invoices_status", constraint = "status IN ('PENDING', 'ISSUED', 'REJECTED', 'VOIDED')")})
 public class InvoiceEntity extends AuditInfo {
 
     @Id
@@ -31,7 +44,7 @@ public class InvoiceEntity extends AuditInfo {
     @Column(name = "kind", nullable = false, length = 20)
     private String kind;
 
-    @Column(name = "order_id", nullable = false)
+    @Column(name = "order_id")
     private Long orderId;
 
     @Column(name = "related_invoice_id")
@@ -132,4 +145,9 @@ public class InvoiceEntity extends AuditInfo {
     @Version
     @Column(name = "version", nullable = false)
     private Long version = 0L;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "active_order_invoice", columnDefinition = "bigint generated always as (if(kind = 'INVOICE' and status <> 'VOIDED' and deleted = 0, order_id, null)) stored", insertable = false, updatable = false)
+    private Long activeOrderInvoice;
+
 }

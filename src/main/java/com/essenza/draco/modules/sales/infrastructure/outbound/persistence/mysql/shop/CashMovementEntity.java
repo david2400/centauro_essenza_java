@@ -11,12 +11,19 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 /** Entrada/salida de efectivo (inmutable). */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "cash_movements")
+@Table(name = "cash_movements",
+        indexes = {
+                @Index(name = "idx_cash_movements_session", columnList = "cash_session_id, created_at")},
+        check = {
+                @CheckConstraint(name = "ck_cash_movements_type", constraint = "type IN ('IN', 'OUT')"),
+                @CheckConstraint(name = "ck_cash_movements_amount", constraint = "amount > 0")})
 public class CashMovementEntity {
 
     @Id
@@ -44,4 +51,5 @@ public class CashMovementEntity {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
 }

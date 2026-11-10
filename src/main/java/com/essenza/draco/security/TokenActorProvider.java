@@ -69,6 +69,11 @@ public class TokenActorProvider implements ActorProvider {
 
     @Override
     public RequestActor current() {
+        // Actor fijado por el servidor (tienda pública); nunca viene del navegador.
+        java.util.Optional<RequestActor> scoped = com.essenza.draco.shared.security.ActorScope.current();
+        if (scoped.isPresent()) {
+            return scoped.get();
+        }
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String header = bearer();
         boolean authenticated = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);

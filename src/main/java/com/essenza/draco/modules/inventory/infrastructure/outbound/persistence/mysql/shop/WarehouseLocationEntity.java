@@ -12,12 +12,15 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import jakarta.persistence.UniqueConstraint;
 
 /** V14: ubicación interna de una bodega. */
 @Data
 @NoArgsConstructor
 @Entity
-@Table(name = "warehouse_locations")
+@Table(name = "warehouse_locations",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_warehouse_locations_code", columnNames = {"warehouse_id", "code"})})
 public class WarehouseLocationEntity {
 
     @Id
@@ -59,4 +62,5 @@ public class WarehouseLocationEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
 }

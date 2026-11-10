@@ -15,12 +15,22 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.CheckConstraint;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @Entity
-@Table(name = "cash_sessions")
+@Table(name = "cash_sessions",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_cash_sessions_open_register", columnNames = {"open_register"})},
+        indexes = {
+                @Index(name = "idx_cash_sessions_register", columnList = "cash_register_id, opened_at")},
+        check = {
+                @CheckConstraint(name = "ck_cash_sessions_status", constraint = "status IN ('OPEN', 'CLOSED')"),
+                @CheckConstraint(name = "ck_cash_sessions_opening", constraint = "opening_amount >= 0")})
 public class CashSessionEntity extends AuditInfo {
 
     @Id
@@ -67,4 +77,9 @@ public class CashSessionEntity extends AuditInfo {
     @Version
     @Column(name = "version", nullable = false)
     private Long version = 0L;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "open_register", columnDefinition = "bigint generated always as (if(status = 'OPEN' and deleted = 0, cash_register_id, null)) stored", insertable = false, updatable = false)
+    private Long openRegister;
+
 }

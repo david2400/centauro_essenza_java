@@ -32,6 +32,10 @@ public class OrderLedgerAdapter implements OrderLedger {
     private final JpaProductOrderRepository lines;
     private final EntityManager em;
 
+    /** STORE: la tienda cobra los subpedidos externos y le liquida al vendedor; SELLER: los cobra el vendedor. */
+    @org.springframework.beans.factory.annotation.Value("${essenza.marketplace.collection:STORE}")
+    private String collection = "STORE";
+
     public OrderLedgerAdapter(JpaOrderRepository orders, JpaProductOrderRepository lines, EntityManager em) {
         this.orders = orders;
         this.lines = lines;
@@ -359,6 +363,11 @@ public class OrderLedgerAdapter implements OrderLedger {
                          WHERE l.order_id = :id AND l.deleted = 0""")
                 .setParameter("id", orderId).getSingleResult();
         return row != null && ((Number) row).intValue() == 1;
+    }
+
+    @Override
+    public boolean storeCollects(Long orderId) {
+        return !"SELLER".equalsIgnoreCase(collection == null ? "" : collection.trim()) || consignmentSale(orderId);
     }
 
     /** Toma el siguiente número libre (salta los que ya existan) y avanza la numeración. */

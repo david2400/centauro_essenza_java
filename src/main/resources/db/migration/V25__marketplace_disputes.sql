@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS mp_dispute_events (
 
 SET @has_ck := (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'mp_seller_ledger' AND CONSTRAINT_NAME = 'ck_mp_seller_ledger_type');
-SET @sql := IF(@has_ck = 1, 'ALTER TABLE mp_seller_ledger DROP CONSTRAINT ck_mp_seller_ledger_type', 'DO 0');
+SET @sql := IF(@has_ck = 1, CONCAT('ALTER TABLE mp_seller_ledger DROP ', IF(VERSION() LIKE '%MariaDB%', 'CONSTRAINT', 'CHECK'), ' ck_mp_seller_ledger_type'), 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 ALTER TABLE mp_seller_ledger ADD CONSTRAINT ck_mp_seller_ledger_type CHECK (entry_type IN ('COMMISSION', 'COMMISSION_REVERSAL',

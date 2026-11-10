@@ -8,13 +8,21 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.util.Set;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
+import jakarta.persistence.Column;
 
 @SuperBuilder
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "units_measurement")
+@Table(name = "units_measurement",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_units_code_active", columnNames = {"code_active"}),
+                @UniqueConstraint(name = "uk_units_name_active", columnNames = {"name_active"})},
+        indexes = {
+                @Index(name = "idx_units_dimension", columnList = "dimension")})
 public class UnitMeasurementEntity extends AuditInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,4 +56,12 @@ public class UnitMeasurementEntity extends AuditInfo {
 
     @ManyToMany(mappedBy = "unitMeasurements")
     private Set<FeatureEntity> features;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(20) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "name_active", columnDefinition = "varchar(255) generated always as (if(deleted = 0, name, null)) stored", insertable = false, updatable = false)
+    private String nameActive;
 }

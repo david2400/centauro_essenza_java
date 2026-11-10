@@ -29,17 +29,25 @@ public class OfferStockService implements OfferStock {
     private final OfferSaleStore store;
     private final Clock clock;
     private final ConsignmentService consignment;
+    private final SellerProceedsService proceeds;
 
     /** Para pruebas sin consignación. */
     public OfferStockService(OfferSaleStore store, Clock marketplaceClock) {
-        this(store, marketplaceClock, null);
+        this(store, marketplaceClock, null, null);
+    }
+
+    /** Para pruebas sin abonos de lo cobrado por la tienda. */
+    public OfferStockService(OfferSaleStore store, Clock marketplaceClock, ConsignmentService consignment) {
+        this(store, marketplaceClock, consignment, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public OfferStockService(OfferSaleStore store, Clock marketplaceClock, ConsignmentService consignment) {
+    public OfferStockService(OfferSaleStore store, Clock marketplaceClock, ConsignmentService consignment,
+                             SellerProceedsService proceeds) {
         this.store = store;
         this.clock = marketplaceClock;
         this.consignment = consignment;
+        this.proceeds = proceeds;
     }
 
     @Override
@@ -128,6 +136,12 @@ public class OfferStockService implements OfferStock {
                 consignment.sold(reservation.offerId(), reservation.orderId(), reservation.lineId(), reservation.quantity());
             } else if (consignment != null && move.to() == OfferReservation.Status.RETURNED) {
                 consignment.unsold(reservation.offerId(), reservation.orderId(), reservation.lineId());
+            }
+            // Ofertas que despacha el vendedor: si la tienda cobró, le abona lo pagado (y lo reversa al cancelar).
+            if (proceeds != null && move.to() == OfferReservation.Status.COMMITTED) {
+                proceeds.sold(reservation.offerId(), reservation.lineId());
+            } else if (proceeds != null && move.to() == OfferReservation.Status.RETURNED) {
+                proceeds.unsold(reservation.offerId(), reservation.lineId());
             }
         }
     }

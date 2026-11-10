@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import com.essenza.draco.shared.common.domain.entity.AuditInfo;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Index;
 
 /** Medio de pago (tabla histórica payment_types, ampliada en V8). */
 @SuperBuilder
@@ -23,7 +25,11 @@ import com.essenza.draco.shared.common.domain.entity.AuditInfo;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "payment_types")
+@Table(name = "payment_types",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_payment_types_code_active", columnNames = {"code_active"})},
+        indexes = {
+                @Index(name = "idx_payment_types_active", columnList = "active, position")})
 public class PaymentMethodEntity extends AuditInfo {
 
     @Id
@@ -75,4 +81,8 @@ public class PaymentMethodEntity extends AuditInfo {
 
     @Column(name = "allows_change", nullable = false)
     private boolean allowsChange;
+
+    /** Columna generada (solo lectura para JPA). */
+    @Column(name = "code_active", columnDefinition = "varchar(40) generated always as (if(deleted = 0, code, null)) stored", insertable = false, updatable = false)
+    private String codeActive;
 }
