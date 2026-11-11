@@ -24,7 +24,7 @@ public class OrderShippingQuoteController {
     }
 
     @Operation(summary = "Shipping options", description = "Opciones por transportadora (valor, peso cobrable y fechas) para el destino "
-            + "y las líneas de la orden. No guarda nada. VENTAS.VER.")
+            + "y las líneas de la orden. No guarda nada. Menú /ventas/orders, /logistica/dispatches o /logistica/shipping-costs.")
     @PostMapping("/shipping-quote")
     public ShippingQuotes.QuoteResult quote(@RequestBody OrderShippingQuoteService.Request request) {
         return quotes.quote(request);

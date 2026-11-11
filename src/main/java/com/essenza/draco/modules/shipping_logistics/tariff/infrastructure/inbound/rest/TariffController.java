@@ -39,25 +39,25 @@ public class TariffController {
         this.tariffs = tariffs;
     }
 
-    @Operation(summary = "List rate cards", description = "Tarifarios con tarifas y franjas. LOGISTICA.VER.")
+    @Operation(summary = "List rate cards", description = "Tarifarios con tarifas y franjas. Menú /logistica/shipping-costs.")
     @GetMapping("/cards")
     public List<RateCardDto> cards() {
         return tariffs.cards();
     }
 
-    @Operation(summary = "Create rate card", description = "Un tarifario por transportadora. LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Create rate card", description = "Un tarifario por transportadora. Menú /logistica/shipping-costs.")
     @PostMapping("/cards")
     public ResponseEntity<RateCardDto> createCard(@RequestBody SaveRateCardRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(tariffs.saveCard(null, request));
     }
 
-    @Operation(summary = "Update rate card", description = "Requiere la versión leída (409 si otro la cambió). LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Update rate card", description = "Requiere la versión leída (409 si otro la cambió). Menú /logistica/shipping-costs.")
     @PutMapping("/cards/{id}")
     public RateCardDto updateCard(@PathVariable long id, @RequestBody SaveRateCardRequest request) {
         return tariffs.saveCard(id, request);
     }
 
-    @Operation(summary = "Delete rate card", description = "Borra el tarifario con sus tarifas. LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Delete rate card", description = "Borra el tarifario con sus tarifas. Menú /logistica/shipping-costs.")
     @DeleteMapping("/cards/{id}")
     public ResponseEntity<Void> deleteCard(@PathVariable long id) {
         tariffs.deleteCard(id);
@@ -65,56 +65,56 @@ public class TariffController {
     }
 
     @Operation(summary = "Save zone rate", description = "Crea o reemplaza la tarifa de una zona (LOCAL, REGIONAL, NATIONAL o Z<id>) "
-            + "con sus franjas de peso. LOGISTICA.GESTIONAR.")
+            + "con sus franjas de peso. Menú /logistica/shipping-costs.")
     @PutMapping("/cards/{id}/rates/{zoneKey}")
     public RateCardDto saveRate(@PathVariable long id, @PathVariable String zoneKey, @RequestBody SaveZoneRateRequest request) {
         return tariffs.saveRate(id, zoneKey, request);
     }
 
-    @Operation(summary = "Delete zone rate", description = "LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Delete zone rate", description = "Menú /logistica/shipping-costs.")
     @DeleteMapping("/cards/{id}/rates/{zoneKey}")
     public RateCardDto deleteRate(@PathVariable long id, @PathVariable String zoneKey, @RequestParam Long version) {
         return tariffs.deleteRate(id, zoneKey, version);
     }
 
-    @Operation(summary = "List zones", description = "Zonas propias con sus lugares. LOGISTICA.VER.")
+    @Operation(summary = "List zones", description = "Zonas propias con sus lugares. Menú /logistica/shipping-costs.")
     @GetMapping("/zones")
     public List<ZoneDto> zones() {
         return tariffs.zones();
     }
 
-    @Operation(summary = "Create zone", description = "Un lugar solo puede estar en una zona. LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Create zone", description = "Un lugar solo puede estar en una zona. Menú /logistica/shipping-costs.")
     @PostMapping("/zones")
     public ResponseEntity<ZoneDto> createZone(@RequestBody SaveZoneRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(tariffs.saveZone(null, request));
     }
 
-    @Operation(summary = "Update zone", description = "Reemplaza los lugares. LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Update zone", description = "Reemplaza los lugares. Menú /logistica/shipping-costs.")
     @PutMapping("/zones/{id}")
     public ZoneDto updateZone(@PathVariable long id, @RequestBody SaveZoneRequest request) {
         return tariffs.saveZone(id, request);
     }
 
-    @Operation(summary = "Delete zone", description = "Solo si ningún tarifario la usa. LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Delete zone", description = "Solo si ningún tarifario la usa. Menú /logistica/shipping-costs.")
     @DeleteMapping("/zones/{id}")
     public ResponseEntity<Void> deleteZone(@PathVariable long id) {
         tariffs.deleteZone(id);
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Simulate quote", description = "Cotiza con artículos o paquetes escritos a mano. No guarda nada. LOGISTICA.VER.")
+    @Operation(summary = "Simulate quote", description = "Cotiza con artículos o paquetes escritos a mano. No guarda nada. Menú /logistica/shipping-costs.")
     @PostMapping("/quote")
     public QuoteDto quote(@RequestBody QuoteRequestDto request) {
         return tariffs.simulate(request);
     }
 
-    @Operation(summary = "Coverage gaps", description = "Destinos cotizados que siguen sin tarifa. LOGISTICA.VER.")
+    @Operation(summary = "Coverage gaps", description = "Destinos cotizados que siguen sin tarifa. Menú /logistica/shipping-costs.")
     @GetMapping("/coverage-gaps")
     public List<CoverageGapDto> gaps() {
         return tariffs.gaps();
     }
 
-    @Operation(summary = "Dismiss coverage gap", description = "LOGISTICA.GESTIONAR.")
+    @Operation(summary = "Dismiss coverage gap", description = "Menú /logistica/shipping-costs.")
     @DeleteMapping("/coverage-gaps")
     public ResponseEntity<Void> dismissGap(@RequestParam Long countryId, @RequestParam Long stateId, @RequestParam Long cityId) {
         tariffs.dismissGap(countryId, stateId, cityId);

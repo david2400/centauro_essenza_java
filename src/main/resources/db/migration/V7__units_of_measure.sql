@@ -15,33 +15,9 @@
 SET @has_units := (SELECT COUNT(*) FROM information_schema.TABLES
                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'units_measurement');
 
--- 1. Columnas nuevas ---------------------------------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'units_measurement' AND COLUMN_NAME = 'code');
-SET @sql := IF(@has_units = 1 AND @missing = 1,
-  'ALTER TABLE units_measurement
-     ADD COLUMN code VARCHAR(20) NULL,
-     ADD COLUMN symbol VARCHAR(20) NULL,
-     ADD COLUMN dimension VARCHAR(20) NOT NULL DEFAULT ''OTHER'',
-     ADD COLUMN factor DECIMAL(24,12) NOT NULL DEFAULT 1,
-     ADD COLUMN is_base TINYINT(1) NOT NULL DEFAULT 0,
-     ADD COLUMN display_decimals INT NOT NULL DEFAULT 2,
-     ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 2. El nombre deja de ser único global (bloqueaba recrear una unidad borrada) -------
-SET @uk := (SELECT s.INDEX_NAME FROM information_schema.STATISTICS s
-             WHERE s.TABLE_SCHEMA = DATABASE() AND s.TABLE_NAME = 'units_measurement'
-               AND s.NON_UNIQUE = 0 AND s.INDEX_NAME <> 'PRIMARY' AND s.COLUMN_NAME = 'name'
-               AND (SELECT COUNT(*) FROM information_schema.STATISTICS x
-                     WHERE x.TABLE_SCHEMA = s.TABLE_SCHEMA AND x.TABLE_NAME = s.TABLE_NAME
-                       AND x.INDEX_NAME = s.INDEX_NAME) = 1
-             LIMIT 1);
-SET @sql := IF(@uk IS NOT NULL, CONCAT('ALTER TABLE units_measurement DROP INDEX `', @uk, '`'), 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
 -- 3. Catálogo de unidades estándar (tabla auxiliar, se elimina al final) -------------
 DROP TABLE IF EXISTS v7_unit_seed;
+
 CREATE TABLE v7_unit_seed (
   code VARCHAR(20) NOT NULL PRIMARY KEY,
   symbol VARCHAR(20) NOT NULL,
@@ -52,6 +28,7 @@ CREATE TABLE v7_unit_seed (
   display_decimals INT NOT NULL,
   aliases VARCHAR(200) NOT NULL
 );
+
 INSERT INTO v7_unit_seed VALUES
   ('mm',    'mm',    'Milímetro',          'LENGTH', 0.001,            0, 0, 'mm,milimetro,milímetro,milimetros,milímetros'),
   ('cm',    'cm',    'Centímetro',         'LENGTH', 0.01,             0, 1, 'cm,centimetro,centímetro,centimetros,centímetros'),
@@ -111,34 +88,3 @@ SET @sql := IF(@has_units = 1,
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 DROP TABLE IF EXISTS v7_unit_seed;
-
--- 4. Unicidad entre no borrados (columnas generadas, como en V5) ----------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'units_measurement' AND COLUMN_NAME = 'code_active');
-SET @sql := IF(@has_units = 1 AND @missing = 1,
-  'ALTER TABLE units_measurement
-     MODIFY COLUMN code VARCHAR(20) NOT NULL,
-     MODIFY COLUMN symbol VARCHAR(20) NOT NULL,
-     ADD COLUMN code_active VARCHAR(20) GENERATED ALWAYS AS (IF(deleted = 0, code, NULL)) STORED,
-     ADD COLUMN name_active VARCHAR(255) GENERATED ALWAYS AS (IF(deleted = 0, name, NULL)) STORED,
-     ADD UNIQUE KEY uk_units_code_active (code_active),
-     ADD UNIQUE KEY uk_units_name_active (name_active),
-     ADD KEY idx_units_dimension (dimension)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 5. Contenido neto en productos y variantes -----------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'net_content');
-SET @has_products := (SELECT COUNT(*) FROM information_schema.TABLES
-                      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products');
-SET @sql := IF(@has_products = 1 AND @missing = 1,
-  'ALTER TABLE products ADD COLUMN net_content DECIMAL(18,4) NULL, ADD COLUMN net_content_unit_id BIGINT NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_childs' AND COLUMN_NAME = 'net_content');
-SET @has_childs := (SELECT COUNT(*) FROM information_schema.TABLES
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_childs');
-SET @sql := IF(@has_childs = 1 AND @missing = 1,
-  'ALTER TABLE product_childs ADD COLUMN net_content DECIMAL(18,4) NULL, ADD COLUMN net_content_unit_id BIGINT NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

@@ -43,49 +43,57 @@ import com.essenza.draco.shared.common.logistics.ShippingQuotes;
 import com.essenza.draco.shared.exceptions.ConflictException;
 import com.essenza.draco.shared.exceptions.NotFoundException;
 import com.essenza.draco.shared.security.ActorProvider;
+import com.essenza.draco.shared.security.MenuAccess;
 import com.essenza.draco.shared.security.RequestActor;
 
 /**
  * Administración del tarifario (tarifarios, tarifas por zona, zonas propias), simulador y destinos sin cobertura.
- * Empresa y permisos salen del token; las ediciones usan versión para que dos personas no se pisen.
+ * La empresa sale del token y el acceso, del menú {@value #MENU} asignado en access_control (no hay permisos con
+ * nombre). Las ediciones usan versión para que dos personas no se pisen.
  */
 @Service
 @Transactional
 public class TariffAdminService {
 
-    /** Permisos de logística; mientras se crean en access_control también sirven los de ventas. */
-    public static final String VIEW = "LOGISTICA.VER";
-    public static final String MANAGE = "LOGISTICA.GESTIONAR";
-    static final String[] CAN_VIEW = {VIEW, MANAGE, "VENTAS.VER", "VENTAS.GESTIONAR"};
-    static final String[] CAN_MANAGE = {MANAGE, "VENTAS.GESTIONAR"};
+    /** Menú del tarifario en access_control: quien lo tenga asignado puede consultarlo y administrarlo. */
+    public static final String MENU = com.essenza.draco.shared.security.Menus.SHIPPING_COSTS;
     static final int MAX_PLACES = 500;
     static final int MAX_PIECES = 50;
 
     private final TariffStore store;
     private final ShippingQuoteService quotes;
     private final ActorProvider actors;
+    private final MenuAccess menus;
     private final Clock clock;
 
-    public TariffAdminService(TariffStore store, ShippingQuoteService quotes, ActorProvider actors,
+    public TariffAdminService(TariffStore store, ShippingQuoteService quotes, ActorProvider actors, MenuAccess menus,
                               @Qualifier("marketplaceClock") Clock clock) {
         this.store = store;
         this.quotes = quotes;
         this.actors = actors;
+        this.menus = menus;
         this.clock = clock;
+    }
+
+    /** Usuario con el menú del tarifario asignado (empresa del token). */
+    private RequestActor actor() {
+        RequestActor actor = actors.current();
+        menus.requireAny(MENU);
+        return actor;
     }
 
     // ------------------------------------------------------------------------------------------ tarifarios
 
     @Transactional(readOnly = true)
     public List<RateCardDto> cards() {
-        RequestActor actor = actors.current().requireAny(CAN_VIEW);
+        RequestActor actor = actor();
         Map<Long, Audit> audits = store.cardAudits(actor.companyId());
         Map<String, String> zoneNames = zoneNames(actor.companyId());
         return store.cards(actor.companyId()).stream().map(c -> dto(c, audits.get(c.id()), zoneNames)).toList();
     }
 
     public RateCardDto saveCard(Long id, SaveRateCardRequest in) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         if (in == null) {
             throw new TariffRuleViolation("Faltan los datos del tarifario.");
         }
@@ -114,7 +122,7 @@ public class TariffAdminService {
     }
 
     public void deleteCard(long id) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         existingCard(actor.companyId(), id);
         store.deleteCard(actor.companyId(), id);
         quotes.invalidate(actor.companyId());
@@ -122,7 +130,7 @@ public class TariffAdminService {
 
     /** Crea o reemplaza la tarifa de una zona (con todas sus franjas) en un solo paso. */
     public RateCardDto saveRate(long cardId, String zoneKey, SaveZoneRateRequest in) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         if (in == null) {
             throw new TariffRuleViolation("Faltan los datos de la tarifa.");
         }
@@ -141,7 +149,7 @@ public class TariffAdminService {
     }
 
     public RateCardDto deleteRate(long cardId, String zoneKey, Long version) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         long company = actor.companyId();
         existingCard(company, cardId);
         String key = Tariff.checkZoneKey(zoneKey);
@@ -159,12 +167,12 @@ public class TariffAdminService {
 
     @Transactional(readOnly = true)
     public List<ZoneDto> zones() {
-        RequestActor actor = actors.current().requireAny(CAN_VIEW);
+        RequestActor actor = actor();
         return store.zones(actor.companyId()).stream().map(z -> dto(z, store.ratesUsingZone(actor.companyId(), z.zone().key()))).toList();
     }
 
     public ZoneDto saveZone(Long id, SaveZoneRequest in) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         if (in == null) {
             throw new TariffRuleViolation("Faltan los datos de la zona.");
         }
@@ -203,7 +211,7 @@ public class TariffAdminService {
     }
 
     public void deleteZone(long id) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         long company = actor.companyId();
         ZoneView view = existingZone(company, id);
         int used = store.ratesUsingZone(company, view.zone().key());
@@ -218,7 +226,7 @@ public class TariffAdminService {
 
     @Transactional(readOnly = true)
     public QuoteDto simulate(QuoteRequestDto in) {
-        RequestActor actor = actors.current().requireAny(CAN_VIEW);
+        RequestActor actor = actor();
         if (in == null) {
             throw new TariffRuleViolation("Faltan los datos de la cotización.");
         }
@@ -236,7 +244,7 @@ public class TariffAdminService {
     /** Destinos cotizados sin cobertura que siguen sin tarifa (los ya cubiertos se omiten). */
     @Transactional(readOnly = true)
     public List<CoverageGapDto> gaps() {
-        RequestActor actor = actors.current().requireAny(CAN_VIEW);
+        RequestActor actor = actor();
         long company = actor.companyId();
         return store.misses(company, 100).stream()
                 .filter(m -> m.countryId() != null && m.stateId() != null && m.cityId() != null)
@@ -246,7 +254,7 @@ public class TariffAdminService {
     }
 
     public void dismissGap(Long countryId, Long stateId, Long cityId) {
-        RequestActor actor = actors.current().requireAny(CAN_MANAGE);
+        RequestActor actor = actor();
         store.clearMiss(actor.companyId(), new Destination(countryId, stateId, cityId));
     }
 

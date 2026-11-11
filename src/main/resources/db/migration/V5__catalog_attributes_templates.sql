@@ -19,151 +19,33 @@
 
 SET @has_products := (SELECT COUNT(*) FROM information_schema.TABLES
                       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products');
+
 SET @has_skus := (SELECT COUNT(*) FROM information_schema.TABLES
                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_skus');
-SET @has_units := (SELECT COUNT(*) FROM information_schema.TABLES
-                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'units_measurement');
+
 SET @has_features := (SELECT COUNT(*) FROM information_schema.TABLES
                       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'features');
+
 SET @has_feature_units := (SELECT COUNT(*) FROM information_schema.TABLES
                            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'feature_unit_measurement');
+
 SET @has_types := (SELECT COUNT(*) FROM information_schema.TABLES
                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'type_products');
+
 SET @has_type_features := (SELECT COUNT(*) FROM information_schema.TABLES
                            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'type_product_features');
+
 SET @has_product_features := (SELECT COUNT(*) FROM information_schema.TABLES
                               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_features');
+
 SET @ready := (@has_products = 1 AND @has_skus = 1);
-
--- 1. attributes -------------------------------------------------------------------
--- code_active: código único solo entre los no borrados (el borrado es lógico).
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS attributes (
-       id_attribute       BIGINT       NOT NULL AUTO_INCREMENT,
-       code               VARCHAR(60)  NOT NULL,
-       name               VARCHAR(120) NOT NULL,
-       description        VARCHAR(500) NULL,
-       data_type          VARCHAR(20)  NOT NULL,
-       unit_id            BIGINT       NULL,
-       legacy_feature_id  BIGINT       NULL,
-       version            BIGINT       NOT NULL DEFAULT 0,
-       usr_crea           INT          NOT NULL,
-       usr_mod            INT          NULL,
-       created_at         DATETIME(6)  NULL,
-       updated_at         DATETIME(6)  NULL,
-       deleted            TINYINT(1)   NOT NULL DEFAULT 0,
-       code_active        VARCHAR(60)  GENERATED ALWAYS AS (IF(deleted = 0, code, NULL)) VIRTUAL,
-       PRIMARY KEY (id_attribute),
-       CONSTRAINT uk_attributes_code_active UNIQUE (code_active),
-       CONSTRAINT uk_attributes_legacy_feature UNIQUE (legacy_feature_id),
-       CONSTRAINT ck_attributes_data_type CHECK (data_type IN (''TEXT'', ''NUMBER'', ''BOOLEAN'', ''OPTION''))
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.TABLE_CONSTRAINTS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'attributes' AND CONSTRAINT_NAME = 'fk_attributes_unit');
-SET @sql := IF(@ready = 1 AND @has_units = 1 AND @missing = 1,
-  'ALTER TABLE attributes ADD CONSTRAINT fk_attributes_unit FOREIGN KEY (unit_id) REFERENCES units_measurement (id_unit_measurement)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 2. attribute_options ------------------------------------------------------------
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS attribute_options (
-       id_option     BIGINT       NOT NULL AUTO_INCREMENT,
-       attribute_id  BIGINT       NOT NULL,
-       value         VARCHAR(120) NOT NULL,
-       position      INT          NOT NULL DEFAULT 0,
-       created_at    DATETIME(6)  NULL,
-       updated_at    DATETIME(6)  NULL,
-       PRIMARY KEY (id_option),
-       CONSTRAINT uk_attribute_options_value UNIQUE (attribute_id, value),
-       CONSTRAINT fk_attribute_options_attribute FOREIGN KEY (attribute_id) REFERENCES attributes (id_attribute)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 3. product_templates -----------------------------------------------------------
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS product_templates (
-       id_template             BIGINT       NOT NULL AUTO_INCREMENT,
-       name                    VARCHAR(120) NOT NULL,
-       description             VARCHAR(500) NULL,
-       legacy_type_product_id  BIGINT       NULL,
-       version                 BIGINT       NOT NULL DEFAULT 0,
-       usr_crea                INT          NOT NULL,
-       usr_mod                 INT          NULL,
-       created_at              DATETIME(6)  NULL,
-       updated_at              DATETIME(6)  NULL,
-       deleted                 TINYINT(1)   NOT NULL DEFAULT 0,
-       name_active             VARCHAR(120) GENERATED ALWAYS AS (IF(deleted = 0, name, NULL)) VIRTUAL,
-       PRIMARY KEY (id_template),
-       CONSTRAINT uk_product_templates_name_active UNIQUE (name_active),
-       CONSTRAINT uk_product_templates_legacy UNIQUE (legacy_type_product_id)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 4. template_attributes ---------------------------------------------------------
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS template_attributes (
-       template_id   BIGINT     NOT NULL,
-       attribute_id  BIGINT     NOT NULL,
-       required      TINYINT(1) NOT NULL DEFAULT 0,
-       variant_axis  TINYINT(1) NOT NULL DEFAULT 0,
-       filterable    TINYINT(1) NOT NULL DEFAULT 0,
-       position      INT        NOT NULL DEFAULT 0,
-       PRIMARY KEY (template_id, attribute_id),
-       KEY idx_template_attributes_attribute (attribute_id),
-       CONSTRAINT fk_template_attributes_template FOREIGN KEY (template_id) REFERENCES product_templates (id_template),
-       CONSTRAINT fk_template_attributes_attribute FOREIGN KEY (attribute_id) REFERENCES attributes (id_attribute)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 5. products.template_id --------------------------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'template_id');
-SET @sql := IF(@ready = 1 AND @missing = 1,
-  'ALTER TABLE products ADD COLUMN template_id BIGINT NULL,
-       ADD KEY idx_products_template (template_id),
-       ADD CONSTRAINT fk_products_template FOREIGN KEY (template_id) REFERENCES product_templates (id_template)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 6. product_attribute_values (ficha técnica) ------------------------------------
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS product_attribute_values (
-       product_id     BIGINT         NOT NULL,
-       attribute_id   BIGINT         NOT NULL,
-       value_text     VARCHAR(500)   NULL,
-       value_number   DECIMAL(18, 4) NULL,
-       value_boolean  TINYINT(1)     NULL,
-       option_id      BIGINT         NULL,
-       PRIMARY KEY (product_id, attribute_id),
-       KEY idx_pav_attribute (attribute_id),
-       KEY idx_pav_option (option_id),
-       CONSTRAINT fk_pav_product FOREIGN KEY (product_id) REFERENCES products (id_product),
-       CONSTRAINT fk_pav_attribute FOREIGN KEY (attribute_id) REFERENCES attributes (id_attribute),
-       CONSTRAINT fk_pav_option FOREIGN KEY (option_id) REFERENCES attribute_options (id_option)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 7. sku_attribute_values (ejes de variante) -------------------------------------
-SET @sql := IF(@ready = 1,
-  'CREATE TABLE IF NOT EXISTS sku_attribute_values (
-       sku_id        BIGINT NOT NULL,
-       attribute_id  BIGINT NOT NULL,
-       option_id     BIGINT NOT NULL,
-       PRIMARY KEY (sku_id, attribute_id),
-       KEY idx_sav_attribute (attribute_id),
-       KEY idx_sav_option (option_id),
-       CONSTRAINT fk_sav_sku FOREIGN KEY (sku_id) REFERENCES product_skus (id_sku),
-       CONSTRAINT fk_sav_attribute FOREIGN KEY (attribute_id) REFERENCES attributes (id_attribute),
-       CONSTRAINT fk_sav_option FOREIGN KEY (option_id) REFERENCES attribute_options (id_option)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 8. Migración de datos ------------------------------------------------------------
 -- 8.1 features → attributes (NUMBER: el valor antiguo era numérico).
 --     code: nombre en minúsculas con "_"; si se repite se le añade _<id>.
 -- Fila a fila: código base + sufijo _<id> si ya existe, para no fallar por nombres parecidos.
 DROP TABLE IF EXISTS v5_tmp_feature_codes;
+
 SET @sql := IF(@ready = 1 AND @has_features = 1,
   'CREATE TABLE v5_tmp_feature_codes AS
    SELECT f.id_feature,
@@ -187,6 +69,7 @@ SET @sql := IF(@ready = 1 AND @has_features = 1,
      FROM v5_tmp_feature_codes t
     ORDER BY t.id_feature', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 DROP TABLE IF EXISTS v5_tmp_feature_codes;
 
 -- 8.2 Unidad: la primera unidad asociada a la característica.

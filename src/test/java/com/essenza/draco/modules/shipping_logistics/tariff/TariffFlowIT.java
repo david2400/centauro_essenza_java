@@ -37,6 +37,7 @@ import com.essenza.draco.modules.shipping_logistics.tariff.infrastructure.outbou
 import com.essenza.draco.shared.common.logistics.ShippingQuotes;
 import com.essenza.draco.shared.exceptions.ConflictException;
 import com.essenza.draco.shared.exceptions.ForbiddenException;
+import com.essenza.draco.shared.security.MenuAccess;
 import com.essenza.draco.shared.security.RequestActor;
 
 /**
@@ -52,7 +53,7 @@ class TariffFlowIT {
     static NamedParameterJdbcTemplate jdbc;
     static TariffAdminService admin;
     static TariffAdminService otherCompany;
-    static TariffAdminService readOnly;
+    static TariffAdminService noMenu;
     static ShippingQuoteService quotes;
     static long cardId;
     static long zoneId;
@@ -129,12 +130,12 @@ class TariffFlowIT {
         Clock clock = Clock.fixed(LocalDate.of(2026, 11, 13).atTime(15, 0).toInstant(ZoneOffset.UTC), ZoneId.of("America/Bogota"));
         TariffJdbcStore store = new TariffJdbcStore(jdbc);
         quotes = new ShippingQuoteService(store, clock, new DataSourceTransactionManager(ds));
-        admin = new TariffAdminService(store, quotes,
-                () -> new RequestActor(COMPANY, "u1", "Laura", Set.of("LOGISTICA.GESTIONAR")), clock);
-        otherCompany = new TariffAdminService(store, quotes,
-                () -> new RequestActor(99, "u9", "Otra", Set.of("LOGISTICA.GESTIONAR")), clock);
-        readOnly = new TariffAdminService(store, quotes,
-                () -> new RequestActor(COMPANY, "u2", "Ana", Set.of("LOGISTICA.VER")), clock);
+        // Acceso por menú: Laura y "Otra" tienen el menú del tarifario; Ana no.
+        MenuAccess withMenu = paths -> List.of(paths).contains(TariffAdminService.MENU);
+        MenuAccess withoutMenu = paths -> false;
+        admin = new TariffAdminService(store, quotes, () -> new RequestActor(COMPANY, "u1", "Laura", Set.of()), withMenu, clock);
+        otherCompany = new TariffAdminService(store, quotes, () -> new RequestActor(99, "u9", "Otra", Set.of()), withMenu, clock);
+        noMenu = new TariffAdminService(store, quotes, () -> new RequestActor(COMPANY, "u2", "Ana", Set.of()), withoutMenu, clock);
     }
 
     static List<BracketDto> brackets() {
@@ -144,8 +145,9 @@ class TariffFlowIT {
     @Test
     @Order(1)
     void cardsAndRatesAreManagedWithVersions() {
-        assertThatThrownBy(() -> readOnly.saveCard(null, new SaveRateCardRequest(1L, "x", null, null, null, null, null, true, null)))
-                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> noMenu.saveCard(null, new SaveRateCardRequest(1L, "x", null, null, null, null, null, true, null)))
+                .isInstanceOf(ForbiddenException.class).hasMessageContaining("/logistica/shipping-costs");
+        assertThatThrownBy(() -> noMenu.cards()).isInstanceOf(ForbiddenException.class);
         RateCardDto card = admin.saveCard(null, new SaveRateCardRequest(1L, "Coordinadora paquetería", 5000, d("1"), d("0"),
                 d("1"), d("2000"), true, null));
         cardId = card.id();

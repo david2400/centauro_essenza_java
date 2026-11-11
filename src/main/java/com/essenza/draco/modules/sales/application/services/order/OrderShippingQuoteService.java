@@ -10,6 +10,8 @@ import com.essenza.draco.modules.sales.application.output.repository.OrderShipme
 import com.essenza.draco.modules.sales.domain.model.order.OrderRuleViolation;
 import com.essenza.draco.shared.common.logistics.ShippingQuotes;
 import com.essenza.draco.shared.security.ActorProvider;
+import com.essenza.draco.shared.security.MenuAccess;
+import com.essenza.draco.shared.security.Menus;
 import com.essenza.draco.shared.security.RequestActor;
 
 /**
@@ -25,11 +27,16 @@ public class OrderShippingQuoteService {
     private final ShippingQuotes quotes;
     private final OrderShipmentLines orderLines;
     private final ActorProvider actors;
+    private final MenuAccess menus;
 
-    public OrderShippingQuoteService(ShippingQuotes quotes, OrderShipmentLines orderLines, ActorProvider actors) {
+    /** Se cotiza desde la orden, el despacho o el tarifario: basta con tener asignado uno de esos menús. */
+    static final String[] MENUS = {Menus.ORDERS, Menus.DISPATCHES, Menus.SHIPPING_COSTS};
+
+    public OrderShippingQuoteService(ShippingQuotes quotes, OrderShipmentLines orderLines, ActorProvider actors, MenuAccess menus) {
         this.quotes = quotes;
         this.orderLines = orderLines;
         this.actors = actors;
+        this.menus = menus;
     }
 
     public record Line(Long skuId, Long productId, Integer quantity) {
@@ -44,7 +51,8 @@ public class OrderShippingQuoteService {
     }
 
     public ShippingQuotes.QuoteResult quote(Request in) {
-        RequestActor actor = actors.current().requireAny("VENTAS.VER", "VENTAS.GESTIONAR", "LOGISTICA.VER", "LOGISTICA.GESTIONAR");
+        RequestActor actor = actors.current();
+        menus.requireAny(MENUS);
         if (in == null || in.countryId() == null || in.stateId() == null || in.cityId() == null) {
             throw new OrderRuleViolation("Para cotizar el envío elige país, departamento y ciudad de destino.");
         }

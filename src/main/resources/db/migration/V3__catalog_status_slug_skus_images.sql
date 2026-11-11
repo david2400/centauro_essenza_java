@@ -12,6 +12,7 @@
 
 SET @has_products := (SELECT COUNT(*) FROM information_schema.TABLES
                       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products');
+
 SET @has_children := (SELECT COUNT(*) FROM information_schema.TABLES
                       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_childs');
 
@@ -20,9 +21,7 @@ SET @has_children := (SELECT COUNT(*) FROM information_schema.TABLES
 -- ---------------------------------------------------------------------------
 SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'status');
-SET @sql := IF(@has_products = 1 AND @missing = 1,
-  'ALTER TABLE products ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT ''ACTIVE''', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @sql := IF(@has_products = 1 AND @missing = 1,
   'UPDATE products SET status = IF(available = 1, ''ACTIVE'', ''INACTIVE'')', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -32,15 +31,14 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ---------------------------------------------------------------------------
 SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'product_type');
-SET @sql := IF(@has_products = 1 AND @missing = 1,
-  'ALTER TABLE products ADD COLUMN product_type VARCHAR(20) NOT NULL DEFAULT ''SIMPLE''', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @sql := IF(@has_products = 1 AND @missing = 1 AND @has_children = 1,
   'UPDATE products p SET p.product_type = CASE
        WHEN p.is_combo = 1 THEN ''COMBO''
        WHEN EXISTS (SELECT 1 FROM product_childs c WHERE c.product_id = p.id_product AND c.deleted = 0) THEN ''VARIANT''
        ELSE ''SIMPLE'' END', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @sql := IF(@has_products = 1 AND @missing = 1 AND @has_children = 0,
   'UPDATE products SET product_type = IF(is_combo = 1, ''COMBO'', ''SIMPLE'')', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
@@ -50,9 +48,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ---------------------------------------------------------------------------
 SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'slug');
-SET @sql := IF(@has_products = 1 AND @missing = 1,
-  'ALTER TABLE products ADD COLUMN slug VARCHAR(180) NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @sql := IF(@has_products = 1,
   'UPDATE products SET slug = CONCAT(
        LEFT(TRIM(BOTH ''-'' FROM REGEXP_REPLACE(
@@ -61,57 +57,6 @@ SET @sql := IF(@has_products = 1,
            ''[^a-z0-9]+'', ''-'')), 160),
        ''-'', id_product)
    WHERE slug IS NULL OR slug = ''''', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @has_idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND INDEX_NAME = 'uk_products_slug');
-SET @sql := IF(@has_products = 1 AND @has_idx = 0,
-  'ALTER TABLE products ADD CONSTRAINT uk_products_slug UNIQUE (slug)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ---------------------------------------------------------------------------
--- 4. Dinero: DOUBLE → DECIMAL(15,2)
--- ---------------------------------------------------------------------------
-SET @sql := IF(@has_products = 1,
-  'ALTER TABLE products MODIFY real_price DECIMAL(15,2) NOT NULL, MODIFY unit_price DECIMAL(15,2) NOT NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-SET @sql := IF(@has_children = 1,
-  'ALTER TABLE product_childs MODIFY unit_price DECIMAL(15,2) NOT NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ---------------------------------------------------------------------------
--- 5. product_skus
--- ---------------------------------------------------------------------------
-SET @sql := IF(@has_products = 1,
-  'CREATE TABLE IF NOT EXISTS product_skus (
-       id_sku            BIGINT        NOT NULL AUTO_INCREMENT,
-       product_id        BIGINT        NOT NULL,
-       code              VARCHAR(64)   NOT NULL,
-       name              VARCHAR(255)  NOT NULL,
-       description       VARCHAR(255)  NULL,
-       price             DECIMAL(15,2) NOT NULL,
-       cost_price        DECIMAL(15,2) NULL,
-       compare_at_price  DECIMAL(15,2) NULL,
-       barcode           VARCHAR(64)   NULL,
-       weight            DOUBLE        NULL,
-       length            DOUBLE        NULL,
-       width             DOUBLE        NULL,
-       height            DOUBLE        NULL,
-       image_url         VARCHAR(255)  NULL,
-       is_default        BIT(1)        NOT NULL,
-       active            BIT(1)        NOT NULL,
-       legacy_child_id   BIGINT        NULL,
-       version           BIGINT        NOT NULL DEFAULT 0,
-       usr_crea          INT           NOT NULL,
-       usr_mod           INT           NULL,
-       created_at        DATETIME(6)   NULL,
-       updated_at        DATETIME(6)   NULL,
-       deleted           TINYINT(1)    NOT NULL DEFAULT 0,
-       PRIMARY KEY (id_sku),
-       CONSTRAINT uk_product_skus_code UNIQUE (code),
-       CONSTRAINT uk_product_skus_legacy_child UNIQUE (legacy_child_id),
-       KEY idx_product_skus_product (product_id),
-       CONSTRAINT fk_product_skus_product FOREIGN KEY (product_id) REFERENCES products (id_product)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 5a. Un SKU por variante existente
@@ -144,29 +89,6 @@ SET @sql := IF(@has_products = 1,
    JOIN (SELECT product_id, MIN(id_sku) AS first_sku FROM product_skus
          WHERE legacy_child_id IS NOT NULL AND deleted = 0 GROUP BY product_id) f ON f.first_sku = s.id_sku
    SET s.is_default = 1', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- ---------------------------------------------------------------------------
--- 6. product_images
--- ---------------------------------------------------------------------------
-SET @sql := IF(@has_products = 1,
-  'CREATE TABLE IF NOT EXISTS product_images (
-       id_image    BIGINT        NOT NULL AUTO_INCREMENT,
-       product_id  BIGINT        NOT NULL,
-       sku_id      BIGINT        NULL,
-       url         VARCHAR(500)  NOT NULL,
-       position    INT           NOT NULL,
-       alt_text    VARCHAR(255)  NULL,
-       usr_crea    INT           NOT NULL,
-       usr_mod     INT           NULL,
-       created_at  DATETIME(6)   NULL,
-       updated_at  DATETIME(6)   NULL,
-       deleted     TINYINT(1)    NOT NULL DEFAULT 0,
-       PRIMARY KEY (id_image),
-       KEY idx_product_images_product (product_id),
-       CONSTRAINT fk_product_images_product FOREIGN KEY (product_id) REFERENCES products (id_product),
-       CONSTRAINT fk_product_images_sku FOREIGN KEY (sku_id) REFERENCES product_skus (id_sku)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 6a. Imagen principal del producto (posición 0)

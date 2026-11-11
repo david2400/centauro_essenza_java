@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.essenza.draco.modules.sales.application.dto.cash.CashRegisterDto;
+import com.essenza.draco.modules.sales.application.dto.cash.CashierDto;
 import com.essenza.draco.modules.sales.application.dto.cash.SaveCashRegisterDto;
 import com.essenza.draco.modules.sales.application.input.cash.CreateCashRegisterUseCase;
 import com.essenza.draco.modules.sales.application.input.cash.DeleteCashRegisterUseCase;
 import com.essenza.draco.modules.sales.application.input.cash.FindCashRegistersUseCase;
+import com.essenza.draco.modules.sales.application.input.cash.FindCashiersUseCase;
 import com.essenza.draco.modules.sales.application.input.cash.UpdateCashRegisterUseCase;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,11 +38,19 @@ public class CashRegisterController {
     private final CreateCashRegisterUseCase createRegister;
     private final UpdateCashRegisterUseCase updateRegister;
     private final DeleteCashRegisterUseCase deleteRegister;
+    private final FindCashiersUseCase findCashiers;
 
     @Operation(summary = "List", description = "Cajas con su turno abierto y el efectivo esperado.")
     @GetMapping
     public List<CashRegisterDto> list(@RequestParam(value = "includeInactive", defaultValue = "true") boolean includeInactive) {
         return findRegisters.findAll(includeInactive);
+    }
+
+    @Operation(summary = "Cashiers", description = "Quién puede abrir un turno: el usuario de la sesión (primero) y los "
+            + "usuarios activos de la aplicación en esta empresa según access_control.")
+    @GetMapping("/cashiers")
+    public List<CashierDto> cashiers() {
+        return findCashiers.findAll();
     }
 
     @Operation(summary = "Create")

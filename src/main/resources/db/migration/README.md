@@ -1,6 +1,12 @@
 # Migraciones de base de datos (Flyway)
 
 > **Historial.** Flyway está apagado: el esquema ahora lo crea JPA (ver `../README.md`). Estos archivos ya no se ejecutan.
+>
+> **Solo datos.** Se quitaron las sentencias de esquema (`CREATE TABLE`, `ALTER TABLE`, índices, llaves y CHECK): el
+> esquema lo crea JPA y lo que JPA no hace lo completa `config/schema/SchemaFinisher` al arrancar. Quedan los `INSERT` y
+> `UPDATE` (migración y carga de datos) con las variables y tablas de trabajo que necesitan (`tmp_opening`,
+> `v5_tmp_feature_codes`, `v7_unit_seed`). Los archivos sin datos se borraron: V2, V12, V17–V29 y V31–V33. La tabla de
+> abajo describe lo que hacía cada versión completa.
 
 - **V1** es la *línea base*: el esquema que ya existía cuando se activó Flyway
   (lo creó Hibernate con `ddl-auto=update`). No hay archivo V1: Flyway la marca

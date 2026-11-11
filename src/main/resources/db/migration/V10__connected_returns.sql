@@ -16,51 +16,15 @@
 
 SET @has_dev := (SELECT COUNT(*) FROM information_schema.TABLES
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_devolutions');
+
 SET @has_det := (SELECT COUNT(*) FROM information_schema.TABLES
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_devolution_details');
-SET @has_orders := (SELECT COUNT(*) FROM information_schema.TABLES
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders');
+
 SET @has_lines := (SELECT COUNT(*) FROM information_schema.TABLES
                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'product_orders');
-SET @has_invoices := (SELECT COUNT(*) FROM information_schema.TABLES
-                      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices');
-
--- 1. order_devolutions -------------------------------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_devolutions' AND COLUMN_NAME = 'refunded_amount');
-SET @sql := IF(@has_dev = 1 AND @missing = 1,
-  'ALTER TABLE order_devolutions ADD COLUMN warehouse_id BIGINT NULL,
-                                 ADD COLUMN rejected_reason VARCHAR(255) NULL,
-                                 ADD COLUMN rejected_by VARCHAR(100) NULL,
-                                 ADD COLUMN rejected_at DATETIME(6) NULL,
-                                 ADD COLUMN inspected_by VARCHAR(100) NULL,
-                                 ADD COLUMN inspected_at DATETIME(6) NULL,
-                                 ADD COLUMN refunded_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-                                 ADD COLUMN refunded_by VARCHAR(100) NULL,
-                                 ADD COLUMN refunded_at DATETIME(6) NULL,
-                                 ADD COLUMN refund_detail VARCHAR(500) NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.STATISTICS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_devolutions' AND INDEX_NAME = 'ix_order_devolutions_order');
-SET @sql := IF(@has_dev = 1 AND @missing = 1,
-  'CREATE INDEX ix_order_devolutions_order ON order_devolutions (order_id, state)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Estados en mayúscula (el flujo usa P, A, R, I, F, X).
 SET @sql := IF(@has_dev = 1, 'UPDATE order_devolutions SET state = UPPER(state) WHERE state <> UPPER(state)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 2. order_devolution_details ------------------------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_devolution_details' AND COLUMN_NAME = 'restocked_quantity');
-SET @sql := IF(@has_det = 1 AND @missing = 1,
-  'ALTER TABLE order_devolution_details ADD COLUMN sku_id BIGINT NULL,
-                                        ADD COLUMN product_id BIGINT NULL,
-                                        ADD COLUMN sku_code VARCHAR(100) NULL,
-                                        ADD COLUMN product_name VARCHAR(255) NULL,
-                                        ADD COLUMN restock TINYINT(1) NULL,
-                                        ADD COLUMN restocked_quantity INT NOT NULL DEFAULT 0', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Detalles existentes: SKU, producto y nombre desde la línea de la orden.
@@ -72,22 +36,6 @@ SET @sql := IF(@has_det = 1 AND @has_lines = 1,
           d.sku_code = COALESCE(d.sku_code, l.sku_code),
           d.product_name = COALESCE(d.product_name, l.product_name)
     WHERE d.product_name IS NULL OR d.product_id IS NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 3. orders.returned_amount --------------------------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'returned_amount');
-SET @sql := IF(@has_orders = 1 AND @missing = 1,
-  'ALTER TABLE orders ADD COLUMN returned_amount DECIMAL(15,2) NOT NULL DEFAULT 0', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 4. invoices: nota crédito por devolución -----------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'devolution_id');
-SET @sql := IF(@has_invoices = 1 AND @missing = 1,
-  'ALTER TABLE invoices ADD COLUMN devolution_id BIGINT NULL,
-                        ADD COLUMN credit_scope VARCHAR(10) NOT NULL DEFAULT ''TOTAL'',
-                        ADD UNIQUE KEY uk_invoices_devolution (devolution_id)', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 5. Catálogos base ----------------------------------------------------------------

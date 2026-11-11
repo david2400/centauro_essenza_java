@@ -1,5 +1,6 @@
 package com.essenza.draco.modules.inventory.infrastructure.outbound.persistence.mysql.shop;
 
+import jakarta.persistence.CheckConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -20,7 +21,10 @@ import jakarta.persistence.UniqueConstraint;
 @Entity
 @Table(name = "warehouse_locations",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_warehouse_locations_code", columnNames = {"warehouse_id", "code"})})
+                @UniqueConstraint(name = "uk_warehouse_locations_code", columnNames = {"warehouse_id", "code"})},
+        check = {
+                @CheckConstraint(name = "ck_warehouse_locations_type",
+                        constraint = "location_type IN ('STORAGE', 'PICKING', 'RECEIVING', 'DISPATCH', 'QUARANTINE')")})
 public class WarehouseLocationEntity {
 
     @Id

@@ -19,46 +19,12 @@
 
 SET @has_types := (SELECT COUNT(*) FROM information_schema.TABLES
                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_types');
-SET @has_orders := (SELECT COUNT(*) FROM information_schema.TABLES
-                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders');
-
--- 1. payment_types: columnas del medio de pago -------------------------------------
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_types' AND COLUMN_NAME = 'code');
-SET @sql := IF(@has_types = 1 AND @missing = 1,
-  'ALTER TABLE payment_types
-     ADD COLUMN code VARCHAR(40) NULL,
-     ADD COLUMN description VARCHAR(255) NULL,
-     ADD COLUMN instructions VARCHAR(1000) NULL,
-     ADD COLUMN channel VARCHAR(20) NOT NULL DEFAULT ''PHYSICAL'',
-     ADD COLUMN kind VARCHAR(30) NOT NULL DEFAULT ''OTHER'',
-     ADD COLUMN provider VARCHAR(30) NULL,
-     ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1,
-     ADD COLUMN position INT NOT NULL DEFAULT 0,
-     ADD COLUMN fee_percent DECIMAL(6,3) NOT NULL DEFAULT 0,
-     ADD COLUMN fee_fixed DECIMAL(15,2) NOT NULL DEFAULT 0,
-     ADD COLUMN min_amount DECIMAL(15,2) NULL,
-     ADD COLUMN max_amount DECIMAL(15,2) NULL,
-     ADD COLUMN requires_reference TINYINT(1) NOT NULL DEFAULT 0,
-     ADD COLUMN allows_change TINYINT(1) NOT NULL DEFAULT 0', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Medios existentes sin código: código derivado del nombre y del id (único).
 SET @sql := IF(@has_types = 1,
   'UPDATE payment_types
       SET code = CONCAT(LEFT(TRIM(BOTH ''_'' FROM REGEXP_REPLACE(UPPER(name), ''[^A-Z0-9]+'', ''_'')), 28), ''_'', id_payment_type)
     WHERE code IS NULL OR code = ''''', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- Código único entre no borrados (columna generada, igual que en unidades de medida).
-SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
-                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_types' AND COLUMN_NAME = 'code_active');
-SET @sql := IF(@has_types = 1 AND @missing = 1,
-  'ALTER TABLE payment_types
-     MODIFY COLUMN code VARCHAR(40) NOT NULL,
-     ADD COLUMN code_active VARCHAR(40) GENERATED ALWAYS AS (IF(deleted = 0, code, NULL)) STORED,
-     ADD UNIQUE KEY uk_payment_types_code_active (code_active),
-     ADD KEY idx_payment_types_active (active, position)', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 2. Medios de pago habituales (solo los que faltan por código) ----------------------
@@ -87,71 +53,4 @@ SET @sql := IF(@has_types = 1,
               NULL, ''VIRTUAL'', ''GATEWAY'', ''MERCADO_PAGO'', 0, 70, 0, 0
      ) s
     WHERE NOT EXISTS (SELECT 1 FROM payment_types t WHERE t.code = s.code AND t.deleted = 0)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 3. payments --------------------------------------------------------------------
-SET @sql := IF(@has_types = 1 AND @has_orders = 1,
-  'CREATE TABLE IF NOT EXISTS payments (
-       id_payment          BIGINT        NOT NULL AUTO_INCREMENT,
-       order_id            BIGINT        NOT NULL,
-       payment_type_id     BIGINT        NOT NULL,
-       channel             VARCHAR(20)   NOT NULL,
-       kind                VARCHAR(30)   NOT NULL,
-       provider            VARCHAR(30)   NULL,
-       status              VARCHAR(20)   NOT NULL,
-       amount              DECIMAL(15,2) NOT NULL,
-       fee_amount          DECIMAL(15,2) NOT NULL DEFAULT 0,
-       tendered_amount     DECIMAL(15,2) NULL,
-       change_amount       DECIMAL(15,2) NULL,
-       refunded_amount     DECIMAL(15,2) NOT NULL DEFAULT 0,
-       currency            VARCHAR(3)    NOT NULL DEFAULT ''COP'',
-       reference           VARCHAR(120)  NULL,
-       payment_reference   VARCHAR(60)   NOT NULL,
-       provider_reference  VARCHAR(120)  NULL,
-       checkout_url        VARCHAR(1000) NULL,
-       return_url          VARCHAR(1000) NULL,
-       payer_email         VARCHAR(160)  NULL,
-       notes               VARCHAR(500)  NULL,
-       status_detail       VARCHAR(255)  NULL,
-       approved_at         DATETIME(6)   NULL,
-       expires_at          DATETIME(6)   NULL,
-       version             BIGINT        NOT NULL DEFAULT 0,
-       usr_crea            INT           NOT NULL,
-       usr_mod             INT           NULL,
-       created_at          DATETIME(6)   NULL,
-       updated_at          DATETIME(6)   NULL,
-       deleted             TINYINT(1)    NOT NULL DEFAULT 0,
-       PRIMARY KEY (id_payment),
-       UNIQUE KEY uk_payments_payment_reference (payment_reference),
-       KEY idx_payments_order (order_id, status),
-       KEY idx_payments_type (payment_type_id),
-       KEY idx_payments_status_created (status, created_at),
-       KEY idx_payments_provider_ref (provider, provider_reference),
-       CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES orders (id_order),
-       CONSTRAINT fk_payments_type FOREIGN KEY (payment_type_id) REFERENCES payment_types (id_payment_type),
-       CONSTRAINT ck_payments_amount CHECK (amount > 0),
-       CONSTRAINT ck_payments_refunded CHECK (refunded_amount >= 0 AND refunded_amount <= amount),
-       CONSTRAINT ck_payments_status CHECK (status IN (''PENDING'', ''APPROVED'', ''DECLINED'', ''EXPIRED'', ''VOIDED'', ''REFUNDED''))
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- 4. payment_events ----------------------------------------------------------------
-SET @sql := IF(@has_types = 1 AND @has_orders = 1,
-  'CREATE TABLE IF NOT EXISTS payment_events (
-       id_payment_event  BIGINT        NOT NULL AUTO_INCREMENT,
-       payment_id        BIGINT        NULL,
-       source            VARCHAR(30)   NOT NULL,
-       event_key         VARCHAR(160)  NULL,
-       type              VARCHAR(40)   NOT NULL,
-       from_status       VARCHAR(20)   NULL,
-       to_status         VARCHAR(20)   NULL,
-       amount            DECIMAL(15,2) NULL,
-       detail            VARCHAR(500)  NULL,
-       payload           TEXT          NULL,
-       created_at        DATETIME(6)   NOT NULL,
-       PRIMARY KEY (id_payment_event),
-       UNIQUE KEY uk_payment_events_key (source, event_key),
-       KEY idx_payment_events_payment (payment_id, created_at),
-       CONSTRAINT fk_payment_events_payment FOREIGN KEY (payment_id) REFERENCES payments (id_payment)
-   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4', 'DO 0');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

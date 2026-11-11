@@ -7,21 +7,6 @@
 -- (ACH) se dejan vacíos para que la tienda los llene según el formato de su banco pagador.
 -- No destructivo e idempotente.
 
-CREATE TABLE IF NOT EXISTS mp_banks (
-    id          BIGINT       NOT NULL AUTO_INCREMENT,
-    code        VARCHAR(40)  NOT NULL,
-    name        VARCHAR(80)  NOT NULL,
-    kind        VARCHAR(20)  NOT NULL,
-    ach_code    VARCHAR(10)  NULL,
-    active      TINYINT(1)   NOT NULL DEFAULT 1,
-    position    INT          NOT NULL DEFAULT 100,
-    updated_by  VARCHAR(64)  NULL,
-    updated_at  DATETIME(6)  NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_mp_banks_code (code),
-    CONSTRAINT ck_mp_banks_kind CHECK (kind IN ('BANK', 'DIGITAL_BANK', 'WALLET', 'COOPERATIVE', 'FINANCIAL'))
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
 INSERT IGNORE INTO mp_banks (code, name, kind, position) VALUES
   ('BANCOLOMBIA', 'Bancolombia', 'BANK', 10),
   ('BANCO_BOGOTA', 'Banco de Bogotá', 'BANK', 11),
@@ -65,24 +50,3 @@ INSERT IGNORE INTO mp_banks (code, name, kind, position) VALUES
   ('COMULTRASAN', 'Comultrasan', 'COOPERATIVE', 63),
   ('COLTEFINANCIERA', 'Coltefinanciera', 'FINANCIAL', 70),
   ('FINANCIERA_COFINCAFE', 'Financiera Cofincafé', 'FINANCIAL', 71);
-
--- Cuentas de vendedores: entidad, llave Bre-B y número largo -------------------------------------
-SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'mp_seller_bank_accounts' AND COLUMN_NAME = 'bank_id') = 0,
-  'ALTER TABLE mp_seller_bank_accounts ADD COLUMN bank_id BIGINT NULL AFTER company_id,
-     ADD COLUMN key_type VARCHAR(20) NULL AFTER account_type, MODIFY account_number VARCHAR(120) NOT NULL,
-     ADD CONSTRAINT fk_mp_seller_bank_accounts_bank FOREIGN KEY (bank_id) REFERENCES mp_banks (id)', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @sql := IF((SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'mp_seller_bank_accounts' AND CONSTRAINT_NAME = 'ck_mp_seller_bank_accounts_type') = 1,
-  CONCAT('ALTER TABLE mp_seller_bank_accounts DROP ', IF(VERSION() LIKE '%MariaDB%', 'CONSTRAINT', 'CHECK'), ' ck_mp_seller_bank_accounts_type'), 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-ALTER TABLE mp_seller_bank_accounts ADD CONSTRAINT ck_mp_seller_bank_accounts_type
-    CHECK (account_type IN ('SAVINGS', 'CHECKING', 'DIGITAL_WALLET', 'BRE_B_KEY'));
-
-SET @sql := IF((SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'mp_payout_items' AND COLUMN_NAME = 'bank_code') = 0,
-  'ALTER TABLE mp_payout_items ADD COLUMN bank_code VARCHAR(10) NULL AFTER bank_name,
-     ADD COLUMN key_type VARCHAR(20) NULL AFTER account_type, MODIFY account_number VARCHAR(120) NOT NULL', 'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
