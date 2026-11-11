@@ -17,6 +17,7 @@ import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
@@ -78,6 +79,7 @@ public class SchemaFinisher {
     private final String basePackage;
     private final AtomicBoolean done = new AtomicBoolean();
 
+    @Autowired
     public SchemaFinisher(DataSource dataSource,
             @Value("${essenza.schema.finisher.mode:}") String mode,
             @Value("${spring.jpa.hibernate.ddl-auto:none}") String ddlAuto) {

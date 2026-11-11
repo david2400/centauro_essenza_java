@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
@@ -85,6 +86,7 @@ public class AccessControlCatalogSync {
         JsonNode post(String path, JsonNode body) throws IOException, InterruptedException;
     }
 
+    @Autowired
     public AccessControlCatalogSync(
             @Value("${essenza.access-control.sync.enabled:false}") boolean enabled,
             @Value("${essenza.access-control.sync.application:ESSENZA}") String application,
