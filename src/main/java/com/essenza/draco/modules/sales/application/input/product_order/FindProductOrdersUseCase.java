@@ -5,4 +5,7 @@ import java.util.List;
 
 public interface FindProductOrdersUseCase {
     List<ProductOrderDto> findAll();
+
+    /** Solo los del padre indicado (evita traer la tabla completa para filtrar en el cliente). */
+    List<ProductOrderDto> findByOrderId(Long orderId);
 }

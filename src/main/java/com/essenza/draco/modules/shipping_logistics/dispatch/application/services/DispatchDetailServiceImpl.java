@@ -52,4 +52,10 @@ public class DispatchDetailServiceImpl implements CreateDispatchDetailUseCase,
     public List<DispatchDetailDto> findAll() {
         return repository.findAll();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DispatchDetailDto> findByDispatchProductId(Long dispatchProductId) {
+        return repository.findByDispatchProductId(dispatchProductId);
+    }
 }

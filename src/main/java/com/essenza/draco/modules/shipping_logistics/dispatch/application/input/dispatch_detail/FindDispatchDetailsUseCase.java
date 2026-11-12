@@ -6,4 +6,7 @@ import java.util.List;
 
 public interface FindDispatchDetailsUseCase {
     List<DispatchDetailDto> findAll();
+
+    /** Solo los del padre indicado (evita traer la tabla completa para filtrar en el cliente). */
+    List<DispatchDetailDto> findByDispatchProductId(Long dispatchProductId);
 }

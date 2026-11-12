@@ -32,7 +32,7 @@ public class DispatchProductEntity extends AuditInfo {
     @Column(name = "estimated_delivery_date", nullable = false)
     private LocalDate estimatedDeliveryDate;
 
-    @Column(name = "real_delivery_date", nullable = false)
+    @Column(name = "real_delivery_date")
     private LocalDate realDeliveryDate;
 
     @Column(name = "deparment_origin", nullable = false)

@@ -100,8 +100,9 @@ public class TrackingController {
                     content = @Content(mediaType = "application/json"))
     })
     @GetMapping
-    public List<TrackingDto> getAll() {
-        return findTrackings.findAll();
+    public List<TrackingDto> getAll(
+            @Parameter(description = "Dispatch ID (opcional): solo los de ese registro") @RequestParam(value = "dispatchProductId", required = false) Long dispatchProductId) {
+        return dispatchProductId != null ? findTrackings.findByDispatchProductId(dispatchProductId) : findTrackings.findAll();
     }
 
     @Operation(summary = "Delete tracking", description = "Deletes a tracking by ID")

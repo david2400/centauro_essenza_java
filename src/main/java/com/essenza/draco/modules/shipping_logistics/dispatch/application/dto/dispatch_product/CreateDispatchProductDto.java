@@ -22,7 +22,7 @@ public class CreateDispatchProductDto {
     @NotNull
     @FutureOrPresent
     private LocalDate estimatedDeliveryDate;
-    @NotNull
+    /** Se llena al entregar; al registrar el despacho todavía no existe. */
     @PastOrPresent
     private LocalDate realDeliveryDate;
     @NotBlank

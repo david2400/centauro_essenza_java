@@ -18,4 +18,6 @@ public interface TrackingRepository {
     Optional<TrackingDto> findById(Long id);
 
     List<TrackingDto> findAll();
+
+    List<TrackingDto> findByDispatchProductId(Long dispatchProductId);
 }

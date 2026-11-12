@@ -94,8 +94,9 @@ public class EvidenceController {
                     content = @Content(mediaType = "application/json"))
     })
     @GetMapping
-    public List<EvidenceDto> getAll() {
-        return findEvidences.findAll();
+    public List<EvidenceDto> getAll(
+            @Parameter(description = "Return ID (opcional): solo los de ese registro") @RequestParam(value = "orderDevolutionId", required = false) Long orderDevolutionId) {
+        return orderDevolutionId != null ? findEvidences.findByOrderDevolutionId(orderDevolutionId) : findEvidences.findAll();
     }
 
     @Operation(summary = "Delete order devolution evidence", description = "Deletes an order devolution evidence by ID")

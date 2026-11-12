@@ -10,7 +10,8 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "inventory_movements")
+// Índice por fecha: el listado de movimientos se ordena y filtra por fecha de registro.
+@Table(name = "inventory_movements", indexes = @Index(name = "ix_inventory_movements_created_at", columnList = "created_at"))
 public class InventoryMovementEntity extends AuditInfo {
 
     @Id
@@ -26,15 +27,20 @@ public class InventoryMovementEntity extends AuditInfo {
     @Column(name = "from_warehouse_id")
     private Long fromWarehouseId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    // LAZY: el listado solo usa el id; con EAGER cada movimiento cargaba sus bodegas sin usarlas.
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "from_warehouse_id", insertable = false, updatable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private WarehouseEntity fromWarehouse;
 
     @Column(name = "to_warehouse_id")
     private Long toWarehouseId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "to_warehouse_id", insertable = false, updatable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private WarehouseEntity toWarehouse;
 
     @Column(nullable = false, length = 20)

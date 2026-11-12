@@ -53,4 +53,9 @@ public class TrackingRepositoryAdapter implements TrackingRepository {
     public List<TrackingDto> findAll() {
         return jpa.findAll().stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public List<TrackingDto> findByDispatchProductId(Long dispatchProductId) {
+        return jpa.findByDispatchProductIdOrderByIdAsc(dispatchProductId).stream().map(mapper::toDto).toList();
+    }
 }

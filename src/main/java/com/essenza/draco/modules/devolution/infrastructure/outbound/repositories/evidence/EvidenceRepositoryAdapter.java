@@ -53,4 +53,9 @@ public class EvidenceRepositoryAdapter implements EvidenceRepository {
     public List<EvidenceDto> findAll() {
         return jpa.findAll().stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public List<EvidenceDto> findByOrderDevolutionId(Long orderDevolutionId) {
+        return jpa.findByOrderDevolutionIdOrderByIdAsc(orderDevolutionId).stream().map(mapper::toDto).toList();
+    }
 }

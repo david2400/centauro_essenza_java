@@ -53,4 +53,9 @@ public class DispatchDetailRepositoryAdapter implements DispatchDetailRepository
     public List<DispatchDetailDto> findAll() {
         return jpa.findAll().stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public List<DispatchDetailDto> findByDispatchProductId(Long dispatchProductId) {
+        return jpa.findByDispatchProductIdOrderByIdAsc(dispatchProductId).stream().map(mapper::toDto).toList();
+    }
 }

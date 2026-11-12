@@ -52,4 +52,10 @@ public class EvidenceServiceImpl implements CreateEvidenceUseCase,
     public List<EvidenceDto> findAll() {
         return evidenceRepository.findAll();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EvidenceDto> findByOrderDevolutionId(Long orderDevolutionId) {
+        return evidenceRepository.findByOrderDevolutionId(orderDevolutionId);
+    }
 }

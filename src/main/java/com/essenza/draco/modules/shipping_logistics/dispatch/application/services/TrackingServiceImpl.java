@@ -52,4 +52,10 @@ public class TrackingServiceImpl implements CreateTrackingUseCase,
     public List<TrackingDto> findAll() {
         return repository.findAll();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TrackingDto> findByDispatchProductId(Long dispatchProductId) {
+        return repository.findByDispatchProductId(dispatchProductId);
+    }
 }

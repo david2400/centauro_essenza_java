@@ -94,6 +94,11 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
     }
 
     @Override
+    public List<Long> findPendingOnline(Instant from, Instant to, int limit) {
+        return jpa.findPendingOnlineIds(from, to, org.springframework.data.domain.PageRequest.of(0, Math.max(1, limit)));
+    }
+
+    @Override
     public List<Payment> findByOrderId(Long orderId) {
         return jpa.findByOrderIdOrderByIdAsc(orderId).stream().map(PaymentRepositoryAdapter::toDomain).toList();
     }

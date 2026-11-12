@@ -28,7 +28,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,env,loggers,threaddump
+        # env, loggers y threaddump quedan fuera: exponen configuración y estado interno.
+        include: health,info,metrics
   endpoint:
     health:
       show-details: when_authorized

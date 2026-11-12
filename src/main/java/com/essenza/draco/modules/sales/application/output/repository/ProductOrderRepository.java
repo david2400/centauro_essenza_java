@@ -17,4 +17,6 @@ public interface ProductOrderRepository {
     Optional<ProductOrderDto> findById(Long id);
 
     List<ProductOrderDto> findAll();
+
+    List<ProductOrderDto> findByOrderId(Long orderId);
 }

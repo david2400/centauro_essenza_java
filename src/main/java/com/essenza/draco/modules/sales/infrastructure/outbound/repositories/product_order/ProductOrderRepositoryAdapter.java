@@ -57,4 +57,9 @@ public class ProductOrderRepositoryAdapter implements ProductOrderRepository {
     public List<ProductOrderDto> findAll() {
         return jpa.findAll().stream().map(mapper::toDto).toList();
     }
+
+    @Override
+    public List<ProductOrderDto> findByOrderId(Long orderId) {
+        return jpa.findByOrderIdOrderByIdAsc(orderId).stream().map(mapper::toDto).toList();
+    }
 }

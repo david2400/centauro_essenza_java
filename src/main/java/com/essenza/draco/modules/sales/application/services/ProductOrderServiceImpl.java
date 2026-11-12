@@ -163,6 +163,12 @@ public class ProductOrderServiceImpl implements CreateProductOrderUseCase,
         return productOrderRepository.findAll();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductOrderDto> findByOrderId(Long orderId) {
+        return productOrderRepository.findByOrderId(orderId);
+    }
+
     private OrderHeader pendingOrder(Long orderId) {
         OrderHeader order = ledger.lockOrder(orderId)
                 .orElseThrow(() -> new NotFoundException("No se encontró la orden " + orderId + "."));

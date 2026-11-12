@@ -18,4 +18,6 @@ public interface EvidenceRepository {
     Optional<EvidenceDto> findById(Long id);
 
     List<EvidenceDto> findAll();
+
+    List<EvidenceDto> findByOrderDevolutionId(Long orderDevolutionId);
 }

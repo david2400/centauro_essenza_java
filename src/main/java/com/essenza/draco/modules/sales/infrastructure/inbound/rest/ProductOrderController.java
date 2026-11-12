@@ -99,8 +99,9 @@ public class ProductOrderController {
                     content = @Content(mediaType = "application/json"))
     })
     @GetMapping
-    public List<ProductOrderDto> getAll() {
-        return findProductOrders.findAll();
+    public List<ProductOrderDto> getAll(
+            @Parameter(description = "Order ID (opcional): solo los de ese registro") @RequestParam(value = "orderId", required = false) Long orderId) {
+        return orderId != null ? findProductOrders.findByOrderId(orderId) : findProductOrders.findAll();
     }
 
     @Operation(summary = "Delete product order", description = "Deletes a product order by ID")

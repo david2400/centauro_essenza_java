@@ -18,4 +18,6 @@ public interface DispatchDetailRepository {
     Optional<DispatchDetailDto> findById(Long id);
 
     List<DispatchDetailDto> findAll();
+
+    List<DispatchDetailDto> findByDispatchProductId(Long dispatchProductId);
 }

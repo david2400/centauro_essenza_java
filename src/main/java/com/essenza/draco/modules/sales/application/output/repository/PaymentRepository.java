@@ -26,6 +26,12 @@ public interface PaymentRepository {
 
     List<Payment> findByOrderId(Long orderId);
 
+    /**
+     * Ids de pagos en línea (con pasarela) que siguen pendientes y se crearon entre {@code from} y
+     * {@code to}, del más antiguo al más nuevo; para conciliarlos si no llegó el webhook.
+     */
+    List<Long> findPendingOnline(java.time.Instant from, java.time.Instant to, int limit);
+
     Page<Payment> search(PaymentFilter filter, Pageable pageable);
 
     Totals totals(PaymentFilter filter);

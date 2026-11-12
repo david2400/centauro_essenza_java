@@ -80,7 +80,10 @@ public final class SchemaConstraints {
     );
 
     /** Antes db/transicion-jpa.sql: facturas sin orden (comisiones al vendedor). */
-    static final List<NullableColumn> NULLABLE = List.of(new NullableColumn("invoices", "order_id"));
+    static final List<NullableColumn> NULLABLE = List.of(
+            new NullableColumn("invoices", "order_id"),
+            // La entrega real se registra después de crear el despacho.
+            new NullableColumn("dispatch_products", "real_delivery_date"));
 
     private SchemaConstraints() {
     }

@@ -99,8 +99,9 @@ public class DispatchDetailController {
                     content = @Content(mediaType = "application/json"))
     })
     @GetMapping
-    public List<DispatchDetailDto> getAll() {
-        return findDispatchDetails.findAll();
+    public List<DispatchDetailDto> getAll(
+            @Parameter(description = "Dispatch ID (opcional): solo los de ese registro") @RequestParam(value = "dispatchProductId", required = false) Long dispatchProductId) {
+        return dispatchProductId != null ? findDispatchDetails.findByDispatchProductId(dispatchProductId) : findDispatchDetails.findAll();
     }
 
     @Operation(summary = "Delete dispatch detail", description = "Deletes a dispatch detail by ID")

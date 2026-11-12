@@ -36,7 +36,22 @@ spring:
 #      allowed-methods: GET,POST
 #      allowed-headers: "*"
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # Solo salud e info; el resto (env, threaddump, loggers) expone datos internos.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
 logging:
+  pattern:
+    # Id de la petición (X-Request-Id) en cada línea: buscar un error del panel por su "ref".
+    level: "%5p [%X{requestId:-}]"
   level:
     root: INFO
     org.springframework: INFO
