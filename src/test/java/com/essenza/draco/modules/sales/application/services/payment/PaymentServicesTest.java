@@ -28,6 +28,7 @@ import org.mockito.quality.Strictness;
 import com.essenza.draco.modules.sales.application.dto.order.ChangeOrderStatusDto;
 import com.essenza.draco.modules.sales.application.dto.order.OrderDto;
 import com.essenza.draco.modules.sales.application.dto.payment.RegisterPaymentDto;
+import com.essenza.draco.modules.sales.application.dto.payment.RegisterSplitPaymentDto;
 import com.essenza.draco.modules.sales.application.dto.payment.StartCheckoutDto;
 import com.essenza.draco.modules.sales.application.input.order.ChangeOrderStatusUseCase;
 import com.essenza.draco.modules.sales.application.input.order.FindOrderByIdUseCase;
@@ -145,6 +146,33 @@ class PaymentServicesTest {
                 .hasMessageContaining("supera");
         assertThatThrownBy(() -> register.register(new RegisterPaymentDto(10L, 4L, new BigDecimal("1000"), null, null, null, null)))
                 .hasMessageContaining("checkout");
+    }
+
+    @Test
+    void cobroConVariosMediosCubreLaOrdenEnUnaOperacion() {
+        var split = new RegisterSplitPaymentService(register, soporte);
+        var saved = split.register(new RegisterSplitPaymentDto(10L, List.of(
+                new RegisterSplitPaymentDto.Line(1L, new BigDecimal("30000"), new BigDecimal("50000"), null, null),
+                new RegisterSplitPaymentDto.Line(2L, new BigDecimal("50000"), null, "APR-1", null),
+                new RegisterSplitPaymentDto.Line(3L, new BigDecimal("20000"), null, null, null)), "mixto", null));
+        assertThat(saved).hasSize(3);
+        assertThat(saved.get(0).changeAmount()).isEqualByComparingTo("20000");
+        assertThat(stored).allSatisfy(p -> assertThat(p.getNotes()).isEqualTo("mixto"));
+        verify(changeStatus).changeStatus(eq(10L), any());
+    }
+
+    @Test
+    void cobroConVariosMediosValidaLaSumaYDiceQueParteFalla() {
+        var split = new RegisterSplitPaymentService(register, soporte);
+        assertThatThrownBy(() -> split.register(new RegisterSplitPaymentDto(10L, List.of(
+                new RegisterSplitPaymentDto.Line(1L, new BigDecimal("80000"), null, null, null),
+                new RegisterSplitPaymentDto.Line(3L, new BigDecimal("30000"), null, null, null)), null, null)))
+                .hasMessageContaining("supera");
+        assertThat(stored).isEmpty();
+        assertThatThrownBy(() -> split.register(new RegisterSplitPaymentDto(10L, List.of(
+                new RegisterSplitPaymentDto.Line(1L, new BigDecimal("40000"), null, null, null),
+                new RegisterSplitPaymentDto.Line(2L, new BigDecimal("60000"), null, null, null)), null, null)))
+                .hasMessageContaining("Medio 2").hasMessageContaining("referencia");
     }
 
     @Test

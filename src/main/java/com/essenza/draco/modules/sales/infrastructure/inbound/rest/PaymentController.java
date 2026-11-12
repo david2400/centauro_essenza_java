@@ -31,6 +31,7 @@ import com.essenza.draco.modules.sales.application.dto.payment.PaymentEventDto;
 import com.essenza.draco.modules.sales.application.dto.payment.PaymentFilter;
 import com.essenza.draco.modules.sales.application.dto.payment.PaymentsSummaryDto;
 import com.essenza.draco.modules.sales.application.dto.payment.RegisterPaymentDto;
+import com.essenza.draco.modules.sales.application.dto.payment.RegisterSplitPaymentDto;
 import com.essenza.draco.modules.sales.application.dto.payment.StartCheckoutDto;
 import com.essenza.draco.modules.sales.application.input.payment.ConfirmPaymentUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.DeclinePaymentUseCase;
@@ -38,6 +39,7 @@ import com.essenza.draco.modules.sales.application.input.payment.FindPaymentById
 import com.essenza.draco.modules.sales.application.input.payment.FindPaymentEventsUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.RefundPaymentUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.RegisterPaymentUseCase;
+import com.essenza.draco.modules.sales.application.input.payment.RegisterSplitPaymentUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.SearchPaymentsUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.StartCheckoutUseCase;
 import com.essenza.draco.modules.sales.application.input.payment.SummarizePaymentsUseCase;
@@ -65,6 +67,7 @@ public class PaymentController {
     private final FindPaymentByIdUseCase findPayment;
     private final FindPaymentEventsUseCase findEvents;
     private final RegisterPaymentUseCase registerPayment;
+    private final RegisterSplitPaymentUseCase registerSplitPayment;
     private final StartCheckoutUseCase startCheckout;
     private final ConfirmPaymentUseCase confirmPayment;
     private final DeclinePaymentUseCase declinePayment;
@@ -121,6 +124,13 @@ public class PaymentController {
     @PostMapping
     public ResponseEntity<PaymentDto> register(@Valid @RequestBody RegisterPaymentDto input) {
         return ResponseEntity.status(HttpStatus.CREATED).body(registerPayment.register(input));
+    }
+
+    @Operation(summary = "Register split", description = "Cobro de una orden con varios medios (efectivo + datáfono…), todo o nada: "
+            + "si una parte no cumple las reglas no se registra ninguna. La suma no puede superar el saldo por cobrar.")
+    @PostMapping("/split")
+    public ResponseEntity<List<PaymentDto>> registerSplit(@Valid @RequestBody RegisterSplitPaymentDto input) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(registerSplitPayment.register(input));
     }
 
     @Operation(summary = "Checkout", description = "Inicia un pago en línea con la pasarela del medio y devuelve el link de pago.")
