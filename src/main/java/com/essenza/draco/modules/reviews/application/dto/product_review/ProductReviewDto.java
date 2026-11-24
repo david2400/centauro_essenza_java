@@ -29,4 +29,6 @@ public class ProductReviewDto extends AuditInfoDto {
     private String moderationStatus; // PENDING, APPROVED, REJECTED
     private String moderationNotes;
     private LocalDateTime reviewDate;
+    private String storeResponse;
+    private LocalDateTime storeResponseAt;
 }

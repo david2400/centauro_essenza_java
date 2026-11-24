@@ -29,4 +29,7 @@ public interface ProductReviewRepository {
     boolean updateHelpfulVote(Long id, boolean helpful);
 
     boolean updateModerationStatus(Long id, String status, String notes, Boolean isApproved);
+
+    /** Respuesta pública de la tienda; {@code response} nulo la quita. */
+    boolean updateStoreResponse(Long id, String response, java.time.LocalDateTime at);
 }

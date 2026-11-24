@@ -22,4 +22,11 @@ public class ModerateProductReviewDto {
 
     @NotNull(message = "Approval flag is required")
     private Boolean isApproved;
+
+    /**
+     * Respuesta pública de la tienda. Nulo: no se toca; vacío: se quita. Se muestra en la tienda solo si la reseña está
+     * aprobada.
+     */
+    @Size(max = 1000, message = "Store response cannot exceed 1000 characters")
+    private String storeResponse;
 }

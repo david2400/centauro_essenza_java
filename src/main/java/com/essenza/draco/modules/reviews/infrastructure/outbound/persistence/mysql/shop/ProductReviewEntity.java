@@ -66,4 +66,11 @@ public class ProductReviewEntity extends AuditInfo {
 
     @Column(name = "review_date")
     private LocalDateTime reviewDate;
+
+    /** Respuesta pública de la tienda (se muestra bajo la reseña en la tienda). */
+    @Column(name = "store_response", length = 1000)
+    private String storeResponse;
+
+    @Column(name = "store_response_at")
+    private LocalDateTime storeResponseAt;
 }

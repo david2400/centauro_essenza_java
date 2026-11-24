@@ -79,4 +79,15 @@ class StorefrontRulesTest {
         assertThat(limiter.tryAcquire("other", t.plusSeconds(2))).isTrue();
         assertThat(limiter.tryAcquire("ip", t.plusSeconds(601))).isTrue();
     }
+
+    @Test
+    void onlySafeHttpsWebsitesArePublished() {
+        assertThat(StorefrontRules.publicWebsite("https://modaandina.co")).isEqualTo("https://modaandina.co");
+        assertThat(StorefrontRules.publicWebsite(" https://tienda.co/catalogo ")).isEqualTo("https://tienda.co/catalogo");
+        assertThat(StorefrontRules.publicWebsite("http://modaandina.co")).isNull();
+        assertThat(StorefrontRules.publicWebsite("javascript:alert(1)")).isNull();
+        assertThat(StorefrontRules.publicWebsite("https://user:pass@sitio.co")).isNull();
+        assertThat(StorefrontRules.publicWebsite("https://localhost")).isNull();
+        assertThat(StorefrontRules.publicWebsite(null)).isNull();
+    }
 }

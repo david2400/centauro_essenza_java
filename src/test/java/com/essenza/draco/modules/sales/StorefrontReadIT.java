@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
+import com.essenza.draco.modules.sales.application.output.storefront.StorefrontReadStore;
 import com.essenza.draco.modules.sales.domain.model.storefront.StorefrontRules;
 import com.essenza.draco.modules.sales.infrastructure.outbound.repositories.storefront.StorefrontJdbcAdapter;
 
@@ -42,7 +43,7 @@ class StorefrontReadIT {
             sql("DROP TABLE IF EXISTS " + t);
         }
         sql("CREATE TABLE categories (id_category BIGINT PRIMARY KEY, name VARCHAR(80), slug VARCHAR(80), deleted TINYINT(1) DEFAULT 0)");
-        sql("CREATE TABLE brands (id_brand BIGINT PRIMARY KEY, name VARCHAR(80))");
+        sql("CREATE TABLE brands (id_brand BIGINT PRIMARY KEY, name VARCHAR(80), description VARCHAR(500), slug VARCHAR(160), deleted TINYINT(1) DEFAULT 0)");
         sql("""
                 CREATE TABLE products (id_product BIGINT PRIMARY KEY, name VARCHAR(150), description VARCHAR(500), slug VARCHAR(160),
                   status VARCHAR(20), image_url VARCHAR(255), category_id BIGINT, brand_id BIGINT, deleted TINYINT(1) DEFAULT 0)""");
@@ -59,7 +60,8 @@ class StorefrontReadIT {
                   on_hand INT, reserved INT, deleted TINYINT(1) DEFAULT 0)""");
         sql("""
                 CREATE TABLE mp_sellers (id BIGINT PRIMARY KEY, company_id BIGINT, kind VARCHAR(10), legal_name VARCHAR(200),
-                  trade_name VARCHAR(200), status VARCHAR(20))""");
+                  trade_name VARCHAR(200), status VARCHAR(20), city VARCHAR(120), description TEXT, website VARCHAR(200),
+                  approved_at DATETIME(6), doc_number VARCHAR(30), email VARCHAR(160))""");
         sql("""
                 CREATE TABLE mp_offers (id BIGINT PRIMARY KEY, company_id BIGINT, seller_id BIGINT, sku_id BIGINT, currency CHAR(3),
                   price DECIMAL(19,4), available_quantity INT, handling_days INT, item_condition VARCHAR(20), status VARCHAR(20))""");
@@ -68,7 +70,8 @@ class StorefrontReadIT {
                   active TINYINT(1), position INT, deleted TINYINT(1) DEFAULT 0)""");
         sql("""
                 CREATE TABLE product_orders (id_product_order BIGINT AUTO_INCREMENT PRIMARY KEY, order_id BIGINT, product_name VARCHAR(255),
-                  sku_code VARCHAR(64), quantity INT, unit_price DECIMAL(15,2), total DECIMAL(15,2), deleted TINYINT(1) DEFAULT 0)""");
+                  sku_code VARCHAR(64), quantity INT, unit_price DECIMAL(15,2), total DECIMAL(15,2), deleted TINYINT(1) DEFAULT 0,
+                  product_id BIGINT, sku_id BIGINT, offer_id BIGINT)""");
         sql("""
                 CREATE TABLE payments (id_payment BIGINT AUTO_INCREMENT PRIMARY KEY, order_id BIGINT, status VARCHAR(20),
                   checkout_url VARCHAR(500), expires_at DATETIME(6), deleted TINYINT(1) DEFAULT 0)""");
@@ -84,7 +87,7 @@ class StorefrontReadIT {
         store = new StorefrontJdbcAdapter(jdbc);
 
         sql("INSERT INTO categories VALUES (1, 'Ropa', 'ropa', 0), (2, 'Hogar', 'hogar', 0)");
-        sql("INSERT INTO brands VALUES (1, 'Andes')");
+        sql("INSERT INTO brands (id_brand, name, description, slug) VALUES (1, 'Andes', 'Hecho en los Andes', 'andes'), (2, 'Vacía', NULL, 'vacia')");
         // 10: stock propio; 20: solo oferta externa; 30: sin nada que vender; 40: borrador; 50: oferta de otra empresa
         sql("""
                 INSERT INTO products VALUES (10, 'Camisa de lino', 'Fresca 100% lino', 'camisa-lino', 'ACTIVE', NULL, 1, 1, 0),
@@ -105,8 +108,12 @@ class StorefrontReadIT {
                 INSERT INTO stock_items (sku_id, warehouse_id, on_hand, reserved) VALUES (11, 1, 8, 3), (11, 2, 50, 0), (12, 3, 9, 0),
                   (31, 2, 4, 0), (41, 1, 5, 0)""");
         sql("""
-                INSERT INTO mp_sellers VALUES (1, 5, 'EXTERNAL', 'Moda Andina SAS', 'Moda Andina', 'APPROVED'),
-                  (2, 5, 'EXTERNAL', 'Suspendido SAS', NULL, 'SUSPENDED'), (3, 6, 'EXTERNAL', 'Otra', NULL, 'APPROVED')""");
+                INSERT INTO mp_sellers (id, company_id, kind, legal_name, trade_name, status, city, description, website, approved_at,
+                  doc_number, email) VALUES
+                  (1, 5, 'EXTERNAL', 'Moda Andina SAS', 'Moda Andina', 'APPROVED', 'Medellín', 'Ropa de lino', 'https://modaandina.co',
+                   '2025-03-10 12:00:00', '900123456', 'ventas@modaandina.co'),
+                  (2, 5, 'EXTERNAL', 'Suspendido SAS', NULL, 'SUSPENDED', NULL, NULL, NULL, NULL, NULL, NULL),
+                  (3, 6, 'EXTERNAL', 'Otra', NULL, 'APPROVED', NULL, NULL, NULL, NULL, NULL, NULL)""");
         sql("""
                 INSERT INTO mp_offers VALUES (90, 5, 1, 11, 'COP', 99000, 4, 2, 'NEW', 'ACTIVE'),
                   (91, 5, 1, 21, 'COP', 280000, 1, 3, 'USED', 'ACTIVE'),
@@ -134,6 +141,57 @@ class StorefrontReadIT {
     }
 
     @Test
+    void filtersByBrandAndFromPriceAndSortsByPrice() {
+        // Desde: camisa 99.000 (oferta más barata que su precio propio 120.000); mesa 280.000 (solo oferta).
+        assertThat(search(null, new BigDecimal("100000"), null, "NEWEST")).containsExactly(20L);
+        assertThat(search(null, null, new BigDecimal("100000"), "NEWEST")).containsExactly(10L);
+        assertThat(search(null, new BigDecimal("99000"), new BigDecimal("99000"), "NEWEST")).containsExactly(10L);
+        assertThat(search(null, new BigDecimal("300000"), null, "NEWEST")).isEmpty();
+        assertThat(search(null, null, null, "PRICE_ASC")).containsExactly(10L, 20L);
+        assertThat(search(null, null, null, "PRICE_DESC")).containsExactly(20L, 10L);
+        assertThat(search(1L, null, null, "NAME")).containsExactly(10L, 20L);
+        assertThat(search(2L, null, null, "NAME")).isEmpty();
+        assertThat(store.search(COMPANY, "COP", new StorefrontReadStore.SearchFilter(null, null, 1L, new BigDecimal("100000"), null),
+                "NAME", 0, 10).total()).isEqualTo(1);
+        assertThat(store.brands(COMPANY, "COP")).extracting(b -> b.name() + ":" + b.products() + ":" + b.slug())
+                .containsExactly("Andes:2:andes");
+    }
+
+    @Test
+    void brandAndSellerProfiles() {
+        assertThat(store.brand(COMPANY, "COP", "andes")).hasValueSatisfying(b -> {
+            assertThat(b.name()).isEqualTo("Andes");
+            assertThat(b.description()).isEqualTo("Hecho en los Andes");
+            assertThat(b.products()).isEqualTo(2);
+        });
+        assertThat(store.brand(COMPANY, "COP", "1")).hasValueSatisfying(b -> assertThat(b.slug()).isEqualTo("andes"));
+        assertThat(store.brand(COMPANY, "COP", "vacia")).isEmpty(); // sin productos a la venta
+        assertThat(store.brand(COMPANY, "COP", "no-existe")).isEmpty();
+
+        // Vendedor 1: ofertas a la venta en la camisa (sku 11) y la mesa (sku 21); la 94 no tiene cantidad.
+        assertThat(store.seller(COMPANY, "COP", 1)).hasValueSatisfying(m -> {
+            assertThat(m.name()).isEqualTo("Moda Andina");
+            assertThat(m.city()).isEqualTo("Medellín");
+            assertThat(m.website()).isEqualTo("https://modaandina.co");
+            assertThat(m.approvedAt().getYear()).isEqualTo(2025);
+            assertThat(m.products()).isEqualTo(2);
+        });
+        assertThat(store.seller(COMPANY, "COP", 2)).isEmpty(); // suspendido
+        assertThat(store.seller(COMPANY, "COP", 3)).isEmpty(); // de otra empresa
+        assertThat(store.seller(6, "COP", 1)).isEmpty();
+        assertThat(store.search(COMPANY, "COP", new StorefrontReadStore.SearchFilter(null, null, null, null, null, 1L), "NAME", 0, 10)
+                .ids()).containsExactly(10L, 20L);
+        assertThat(store.search(COMPANY, "COP", new StorefrontReadStore.SearchFilter(null, null, null, null, null, 2L), "NAME", 0, 10)
+                .ids()).isEmpty(); // su única oferta es de un vendedor suspendido: nada a la venta
+        assertThat(store.offers(COMPANY, "COP", List.of(11L))).extracting(o -> o.sellerId()).containsExactly(1L);
+        assertThat(store.products(List.of(10L)).get(10L).brandSlug()).isEqualTo("andes");
+    }
+
+    private List<Long> search(Long brand, BigDecimal min, BigDecimal max, String sort) {
+        return store.search(COMPANY, "COP", new StorefrontReadStore.SearchFilter(null, null, brand, min, max), sort, 0, 10).ids();
+    }
+
+    @Test
     void skusOffersImagesAndSlug() {
         assertThat(store.productBySlug("camisa-lino")).contains(10L);
         assertThat(store.productBySlug("10")).contains(10L);
@@ -153,8 +211,14 @@ class StorefrontReadIT {
         store.insert(44, COMPANY, hash, "ana@x.co", Instant.parse("2026-11-09T15:00:00Z"));
         assertThat(store.find(hash)).hasValueSatisfying(a -> assertThat(a.purchaseId()).isEqualTo(44));
         assertThat(store.find(StorefrontRules.hash("otro"))).isEmpty();
-        sql("INSERT INTO product_orders (order_id, product_name, sku_code, quantity, unit_price, total) VALUES (100, 'Camisa', 'CAM-M', 2, 50000, 100000)");
-        assertThat(store.orderLines(List.of(100L))).singleElement().satisfies(l -> assertThat(l.total()).isEqualByComparingTo("100000"));
+        sql("INSERT INTO product_orders (order_id, product_name, sku_code, quantity, unit_price, total, product_id, sku_id, offer_id)"
+                + " VALUES (100, 'Camisa', 'CAM-M', 2, 50000, 100000, 10, 11, 90)");
+        assertThat(store.orderLines(List.of(100L))).singleElement().satisfies(l -> {
+            assertThat(l.total()).isEqualByComparingTo("100000");
+            assertThat(l.skuId()).isEqualTo(11L);
+            assertThat(l.offerId()).isEqualTo(90L);
+            assertThat(l.productSlug()).isEqualTo("camisa-lino");
+        });
         jdbc.update("INSERT INTO payments (order_id, status, checkout_url, expires_at) VALUES (100, 'PENDING', 'https://old', :old),"
                         + " (100, 'PENDING', 'https://new', :later)",
                 new MapSqlParameterSource("old", "2026-11-09 14:00:00").addValue("later", "2026-11-09 16:00:00"));

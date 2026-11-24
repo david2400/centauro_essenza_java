@@ -40,6 +40,18 @@ public interface PaymentGateway {
         return false;
     }
 
+    /**
+     * Prueba de conexión de solo lectura (no crea cobros): verifica que las llaves respondan. Las pasarelas que no la
+     * implementan responden "no disponible".
+     */
+    default ConnectionTest testConnection() {
+        return new ConnectionTest(false, false, "Esta pasarela no tiene prueba de conexión.", null);
+    }
+
+    /** {@code supported}: la pasarela permite probar; {@code merchant}: nombre del comercio si la pasarela lo informa. */
+    record ConnectionTest(boolean supported, boolean ok, String message, String merchant) {
+    }
+
     /** Reembolso en la pasarela; solo si {@link #supportsRefund()}. */
     default void refund(String providerReference, BigDecimal amount, String idempotencyKey) {
         throw new UnsupportedOperationException("La pasarela " + provider() + " no permite reembolsos por API.");

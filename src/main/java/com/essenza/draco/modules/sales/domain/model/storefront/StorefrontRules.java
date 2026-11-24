@@ -149,6 +149,30 @@ public final class StorefrontRules {
     }
 
     /** Lo que se muestra de existencias: el número exacto no se publica. */
+    /**
+     * Sitio web que se puede mostrar en la página pública de un vendedor: solo https, sin credenciales en la URL, con un
+     * dominio con punto y de hasta 200 caracteres. Cualquier otra cosa no se publica (null).
+     */
+    public static String publicWebsite(String website) {
+        if (website == null) {
+            return null;
+        }
+        String url = website.strip();
+        if (url.length() > 200) {
+            return null;
+        }
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String host = uri.getHost();
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null || !host.contains(".") || uri.getUserInfo() != null) {
+                return null;
+            }
+            return uri.toString();
+        } catch (java.net.URISyntaxException e) {
+            return null;
+        }
+    }
+
     public static int shownAvailable(long available) {
         return (int) Math.max(0, Math.min(available, 10));
     }
@@ -171,5 +195,19 @@ public final class StorefrontRules {
             return null;
         }
         return v.length() > max ? v.substring(0, max) : v;
+    }
+
+    /** Nombre público del autor de una reseña: "Ana María Pérez" → "Ana P." (nunca el apellido completo ni el correo). */
+    public static String publicName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            return "Cliente";
+        }
+        String[] parts = fullName.strip().split("\\s+");
+        String first = parts[0].length() > 30 ? parts[0].substring(0, 30) : parts[0];
+        if (parts.length == 1) {
+            return first;
+        }
+        String last = parts[parts.length - 1];
+        return first + " " + last.substring(0, last.offsetByCodePoints(0, 1)).toUpperCase(java.util.Locale.ROOT) + ".";
     }
 }

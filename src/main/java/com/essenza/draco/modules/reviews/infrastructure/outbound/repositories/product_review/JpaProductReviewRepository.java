@@ -28,4 +28,8 @@ public interface JpaProductReviewRepository extends JpaRepository<ProductReviewE
                          @Param("status") String status,
                          @Param("notes") String notes,
                          @Param("isApproved") Boolean isApproved);
+
+    @Modifying
+    @Query("UPDATE ProductReviewEntity r SET r.storeResponse = :response, r.storeResponseAt = :at WHERE r.id = :id")
+    int updateStoreResponse(@Param("id") Long id, @Param("response") String response, @Param("at") java.time.LocalDateTime at);
 }

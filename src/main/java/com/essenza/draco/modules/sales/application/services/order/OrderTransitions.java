@@ -19,6 +19,7 @@ import com.essenza.draco.modules.sales.domain.model.order.OrderRuleViolation;
 import com.essenza.draco.shared.common.inventory.StockReservations;
 import com.essenza.draco.shared.common.marketplace.OfferStock;
 import com.essenza.draco.shared.common.marketplace.SellerCommissions;
+import com.essenza.draco.shared.common.sales.OrderFulfillmentEvent;
 import com.essenza.draco.shared.common.sales.OrderPaidEvent;
 import com.essenza.draco.shared.exceptions.ConflictException;
 
@@ -106,6 +107,11 @@ public class OrderTransitions {
             publisher.publishEvent(new OrderPaidEvent(orderId));
         } else if (target == OrderStatus.CANCELLED && current.map(OrderStatus::stockCommitted).orElse(false)) {
             soporte.redeemCoupon(details.couponId(), -1);
+        }
+        if (target == OrderStatus.SHIPPED || target == OrderStatus.DELIVERED
+                || (target == OrderStatus.READY && details.delivery() != null && details.delivery().isPickup())) {
+            // Avisos al comprador (centauro_cliente): despachada, lista para retirar o entregada.
+            publisher.publishEvent(new OrderFulfillmentEvent(orderId, target.name()));
         }
         String note = message != null ? message : reason;
         soporte.log(orderId, type == null ? OrderEventType.STATUS : type, current.map(Enum::name).orElse(header.state()),

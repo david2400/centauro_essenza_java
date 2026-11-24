@@ -27,8 +27,9 @@ public class InventoryMovementEntity extends AuditInfo {
     @Column(name = "from_warehouse_id")
     private Long fromWarehouseId;
 
-    // LAZY: el listado solo usa el id; con EAGER cada movimiento cargaba sus bodegas sin usarlas.
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER obligatorio: Hibernate 7 no permite LAZY hacia una entidad con @SoftDelete (WarehouseEntity vía AuditInfo).
+    // El código solo usa los ids; las bodegas son pocas y quedan en caché de la sesión, así que el costo es bajo.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "from_warehouse_id", insertable = false, updatable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -37,7 +38,7 @@ public class InventoryMovementEntity extends AuditInfo {
     @Column(name = "to_warehouse_id")
     private Long toWarehouseId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "to_warehouse_id", insertable = false, updatable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

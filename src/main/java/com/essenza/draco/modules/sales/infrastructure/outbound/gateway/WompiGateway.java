@@ -106,6 +106,62 @@ public class WompiGateway implements PaymentGateway {
         return new CheckoutSession(base + (base.contains("?") ? "&" : "?") + query, null);
     }
 
+    /**
+     * Solo lectura: el comercio de la llave pública ({@code GET /merchants/{llave}}) y, si hay llave privada, una
+     * búsqueda de transacciones con ella. Los secretos de integridad y de eventos no se pueden validar por API: se
+     * comprueban al pagar (firma del checkout) y al recibir el primer evento.
+     */
+    @Override
+    public ConnectionTest testConnection() {
+        if (settings.getWompiPublicKey().isEmpty()) {
+            return new ConnectionTest(true, false, "Falta la llave pública (WOMPI_PUBLIC_KEY).", null);
+        }
+        if ("production".equals(environment()) && !settings.isWompiAllowProduction()) {
+            return new ConnectionTest(true, false, "La llave es de producción y los cobros reales están bloqueados "
+                    + "(WOMPI_ALLOW_PRODUCTION=false). Usa llaves de pruebas (pub_test_).", null);
+        }
+        String merchant;
+        try {
+            GatewayHttp.Response response = http.get(apiUrl() + "/merchants/"
+                    + URLEncoder.encode(settings.getWompiPublicKey(), StandardCharsets.UTF_8), Map.of());
+            if (response.status() == 404 || response.status() == 401 || response.status() == 422) {
+                return new ConnectionTest(true, false, "Wompi no reconoce la llave pública. Revisa que sea del ambiente "
+                        + ("production".equals(environment()) ? "de producción" : "de pruebas") + ".", null);
+            }
+            if (!response.ok()) {
+                return new ConnectionTest(true, false, "Wompi respondió " + response.status() + ". Inténtalo de nuevo.", null);
+            }
+            merchant = response.body().path("data").path("name").asText(null);
+        } catch (RuntimeException ex) {
+            return new ConnectionTest(true, false, "No se pudo conectar con Wompi: " + ex.getMessage(), null);
+        }
+        StringBuilder message = new StringBuilder("Llave pública válida");
+        boolean ok = true;
+        if (settings.getWompiPrivateKey().isEmpty()) {
+            message.append(". Sin llave privada (WOMPI_PRIVATE_KEY) no se pueden conciliar los pagos sin webhook.");
+        } else {
+            try {
+                GatewayHttp.Response check = http.get(apiUrl() + "/transactions?reference=essenza-prueba-conexion",
+                        Map.of("Authorization", "Bearer " + settings.getWompiPrivateKey()));
+                if (check.ok()) {
+                    message.append(" y llave privada válida");
+                } else {
+                    ok = false;
+                    message.append(", pero Wompi rechazó la llave privada (").append(check.status()).append(")");
+                }
+            } catch (RuntimeException ex) {
+                ok = false;
+                message.append(", pero no se pudo comprobar la llave privada: ").append(ex.getMessage());
+            }
+            message.append(".");
+        }
+        if (settings.getWompiIntegritySecret().isEmpty() || settings.getWompiEventsSecret().isEmpty()) {
+            ok = false;
+            message.append(" Faltan el secreto de integridad (WOMPI_INTEGRITY_SECRET) o el de eventos (WOMPI_EVENTS_SECRET).");
+        }
+        return new ConnectionTest(true, ok, message.toString(), merchant);
+    }
+
     @Override
     public Optional<GatewayStatus> fetchStatus(String paymentReference, String providerReference) {
         GatewayHttp.Response response;

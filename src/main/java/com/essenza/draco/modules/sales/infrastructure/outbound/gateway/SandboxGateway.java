@@ -44,6 +44,12 @@ public class SandboxGateway implements PaymentGateway {
     }
 
     @Override
+    public ConnectionTest testConnection() {
+        return configured() ? new ConnectionTest(true, true, "Simulador activo: los pagos se aprueban o rechazan sin dinero real.", null)
+                : new ConnectionTest(true, false, "El simulador está apagado (PAYMENTS_SANDBOX_ENABLED=false).", null);
+    }
+
+    @Override
     public String environment() {
         return "sandbox";
     }

@@ -84,4 +84,9 @@ public class ProductReviewRepositoryAdapter implements ProductReviewRepository {
     public boolean updateModerationStatus(Long id, String status, String notes, Boolean isApproved) {
         return jpa.updateModeration(id, status, notes, isApproved) > 0;
     }
+
+    @Override
+    public boolean updateStoreResponse(Long id, String response, java.time.LocalDateTime at) {
+        return jpa.updateStoreResponse(id, response, response == null ? null : at) > 0;
+    }
 }

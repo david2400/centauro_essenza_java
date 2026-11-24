@@ -93,6 +93,10 @@ public class ProductReviewService implements CreateProductReviewUseCase,
         if (!updated) {
             throw new IllegalArgumentException("Product review not found: " + id);
         }
+        if (input.getStoreResponse() != null) {
+            String response = input.getStoreResponse().strip().replaceAll("[\\p{Cntrl}&&[^\\n]]", "");
+            repository.updateStoreResponse(id, response.isEmpty() ? null : response, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        }
 
         return repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Product review not found: " + id));

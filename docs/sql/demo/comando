@@ -1,0 +1,2 @@
+cd /d C:\Users\davi4\Documents\Proyectos\JAVA\draco\docs\sql\demo
+mysql -u root -p -vvv --show-warnings < productos-demo-draco-v3.sql > resultado-productos.txt 2>&1
